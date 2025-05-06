@@ -1,16 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  reactStrictMode: true,
+  output: 'export',
+  basePath: '/trading',
   images: {
-    domains: ['firebasestorage.googleapis.com'],
+    unoptimized: true,
   },
-  webpack: (config) => {
-    config.resolve.fallback = {
-      ...config.resolve.fallback,
-      fs: false,
-    };
-    return config;
-  },
+  trailingSlash: true,
 }
 
 module.exports = nextConfig 
