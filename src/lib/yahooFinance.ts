@@ -1,6 +1,7 @@
 import axios from 'axios'
 
-const CORS_PROXY = 'https://corsproxy.io/?'
+// Using a more reliable CORS proxy
+const CORS_PROXY = 'https://api.allorigins.win/raw?url='
 
 export interface StockData {
   timestamp: number
@@ -27,10 +28,15 @@ export async function getQuote(symbol: string): Promise<StockQuote> {
         `https://query1.finance.yahoo.com/v8/finance/quote?symbols=${symbol}`
       )}`
     )
-    const data = await response.json()
     
     if (!response.ok) {
-      throw new Error(data.error || 'Failed to fetch quote')
+      throw new Error(`HTTP error! status: ${response.status}`)
+    }
+    
+    const data = await response.json()
+    
+    if (!data.quoteResponse?.result?.[0]) {
+      throw new Error('Invalid response format')
     }
 
     const quote = data.quoteResponse.result[0]
@@ -44,7 +50,7 @@ export async function getQuote(symbol: string): Promise<StockQuote> {
     }
   } catch (error) {
     console.error('Error fetching quote:', error)
-    throw error
+    throw new Error('Failed to fetch quote data. Please try again later.')
   }
 }
 
@@ -59,10 +65,15 @@ export async function getHistoricalData(
         `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=${interval}&range=${range}`
       )}`
     )
-    const data = await response.json()
     
     if (!response.ok) {
-      throw new Error(data.error || 'Failed to fetch historical data')
+      throw new Error(`HTTP error! status: ${response.status}`)
+    }
+    
+    const data = await response.json()
+    
+    if (!data.chart?.result?.[0]?.timestamp || !data.chart?.result?.[0]?.indicators?.quote?.[0]) {
+      throw new Error('Invalid response format')
     }
 
     const timestamps = data.chart.result[0].timestamp
@@ -70,14 +81,14 @@ export async function getHistoricalData(
 
     return timestamps.map((timestamp: number, index: number) => ({
       timestamp,
-      open: quotes.open[index],
-      high: quotes.high[index],
-      low: quotes.low[index],
-      close: quotes.close[index],
-      volume: quotes.volume[index]
+      open: quotes.open[index] || 0,
+      high: quotes.high[index] || 0,
+      low: quotes.low[index] || 0,
+      close: quotes.close[index] || 0,
+      volume: quotes.volume[index] || 0
     }))
   } catch (error) {
     console.error('Error fetching historical data:', error)
-    throw error
+    throw new Error('Failed to fetch historical data. Please try again later.')
   }
 } 
