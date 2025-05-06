@@ -1,7 +1,7 @@
 import axios from 'axios'
 
 // Using a more reliable CORS proxy
-const CORS_PROXY = 'https://api.allorigins.win/raw?url='
+const CORS_PROXY = 'https://corsproxy.io/?'
 
 export interface StockData {
   timestamp: number
@@ -33,7 +33,14 @@ export async function getQuote(symbol: string): Promise<StockQuote> {
       throw new Error(`HTTP error! status: ${response.status}`)
     }
     
-    const data = await response.json()
+    const text = await response.text()
+    let data
+    try {
+      data = JSON.parse(text)
+    } catch (e) {
+      console.error('Invalid JSON response:', text)
+      throw new Error('Invalid response from server')
+    }
     
     if (!data.quoteResponse?.result?.[0]) {
       throw new Error('Invalid response format')
@@ -70,7 +77,14 @@ export async function getHistoricalData(
       throw new Error(`HTTP error! status: ${response.status}`)
     }
     
-    const data = await response.json()
+    const text = await response.text()
+    let data
+    try {
+      data = JSON.parse(text)
+    } catch (e) {
+      console.error('Invalid JSON response:', text)
+      throw new Error('Invalid response from server')
+    }
     
     if (!data.chart?.result?.[0]?.timestamp || !data.chart?.result?.[0]?.indicators?.quote?.[0]) {
       throw new Error('Invalid response format')
