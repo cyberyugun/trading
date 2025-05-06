@@ -1,5 +1,7 @@
 import axios from 'axios'
 
+const CORS_PROXY = 'https://corsproxy.io/?'
+
 export interface StockData {
   timestamp: number
   open: number
@@ -18,16 +20,44 @@ export interface StockQuote {
   regularMarketTime: number
 }
 
-const BASE_URL = 'https://query1.finance.yahoo.com/v8/finance'
+export async function getQuote(symbol: string): Promise<StockQuote> {
+  try {
+    const response = await fetch(
+      `${CORS_PROXY}${encodeURIComponent(
+        `https://query1.finance.yahoo.com/v8/finance/quote?symbols=${symbol}`
+      )}`
+    )
+    const data = await response.json()
+    
+    if (!response.ok) {
+      throw new Error(data.error || 'Failed to fetch quote')
+    }
 
-export const getHistoricalData = async (
+    const quote = data.quoteResponse.result[0]
+    return {
+      symbol: quote.symbol,
+      regularMarketPrice: quote.regularMarketPrice,
+      regularMarketChange: quote.regularMarketChange,
+      regularMarketChangePercent: quote.regularMarketChangePercent,
+      regularMarketVolume: quote.regularMarketVolume,
+      regularMarketTime: quote.regularMarketTime
+    }
+  } catch (error) {
+    console.error('Error fetching quote:', error)
+    throw error
+  }
+}
+
+export async function getHistoricalData(
   symbol: string,
   interval: string = '1d',
   range: string = '1mo'
-): Promise<StockData[]> => {
+): Promise<StockData[]> {
   try {
     const response = await fetch(
-      `/api/historical?symbol=${symbol}&interval=${interval}&range=${range}`
+      `${CORS_PROXY}${encodeURIComponent(
+        `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=${interval}&range=${range}`
+      )}`
     )
     const data = await response.json()
     
@@ -48,30 +78,6 @@ export const getHistoricalData = async (
     }))
   } catch (error) {
     console.error('Error fetching historical data:', error)
-    throw error
-  }
-}
-
-export const getQuote = async (symbol: string): Promise<StockQuote> => {
-  try {
-    const response = await fetch(`/api/quote?symbol=${symbol}`)
-    const data = await response.json()
-    
-    if (!response.ok) {
-      throw new Error(data.error || 'Failed to fetch quote')
-    }
-
-    const quote = data.quoteResponse.result[0]
-    return {
-      symbol: quote.symbol,
-      regularMarketPrice: quote.regularMarketPrice,
-      regularMarketChange: quote.regularMarketChange,
-      regularMarketChangePercent: quote.regularMarketChangePercent,
-      regularMarketVolume: quote.regularMarketVolume,
-      regularMarketTime: quote.regularMarketTime
-    }
-  } catch (error) {
-    console.error('Error fetching quote:', error)
     throw error
   }
 } 
