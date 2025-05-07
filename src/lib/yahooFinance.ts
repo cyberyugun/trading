@@ -21,17 +21,22 @@ export interface StockQuote {
 
 export async function getQuote(symbol: string): Promise<StockQuote> {
   try {
-    const response = await fetch(
-      `${CORS_PROXY}${encodeURIComponent(
-        `https://query1.finance.yahoo.com/v8/finance/quote?symbols=${symbol}`
-      )}`
-    )
+    console.log('Fetching quote for symbol:', symbol)
+    const url = `${CORS_PROXY}${encodeURIComponent(
+      `https://query1.finance.yahoo.com/v8/finance/quote?symbols=${symbol}`
+    )}`
+    console.log('Request URL:', url)
+
+    const response = await fetch(url)
+    console.log('Response status:', response.status)
     
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`)
     }
     
     const text = await response.text()
+    console.log('Response text:', text.substring(0, 200) + '...') // Log first 200 chars
+    
     let data
     try {
       data = JSON.parse(text)
@@ -41,10 +46,13 @@ export async function getQuote(symbol: string): Promise<StockQuote> {
     }
     
     if (!data.quoteResponse?.result?.[0]) {
+      console.error('Invalid response format:', data)
       throw new Error('Invalid response format')
     }
 
     const quote = data.quoteResponse.result[0]
+    console.log('Parsed quote:', quote)
+    
     return {
       symbol: quote.symbol,
       regularMarketPrice: quote.regularMarketPrice,
@@ -65,17 +73,22 @@ export async function getHistoricalData(
   range: string = '1mo'
 ): Promise<StockData[]> {
   try {
-    const response = await fetch(
-      `${CORS_PROXY}${encodeURIComponent(
-        `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=${interval}&range=${range}`
-      )}`
-    )
+    console.log('Fetching historical data for symbol:', symbol, 'interval:', interval, 'range:', range)
+    const url = `${CORS_PROXY}${encodeURIComponent(
+      `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=${interval}&range=${range}`
+    )}`
+    console.log('Request URL:', url)
+
+    const response = await fetch(url)
+    console.log('Response status:', response.status)
     
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`)
     }
     
     const text = await response.text()
+    console.log('Response text:', text.substring(0, 200) + '...') // Log first 200 chars
+    
     let data
     try {
       data = JSON.parse(text)
@@ -85,11 +98,13 @@ export async function getHistoricalData(
     }
     
     if (!data.chart?.result?.[0]?.timestamp || !data.chart?.result?.[0]?.indicators?.quote?.[0]) {
+      console.error('Invalid response format:', data)
       throw new Error('Invalid response format')
     }
 
     const timestamps = data.chart.result[0].timestamp
     const quotes = data.chart.result[0].indicators.quote[0]
+    console.log('Parsed data points:', timestamps.length)
 
     return timestamps.map((timestamp: number, index: number) => ({
       timestamp,
