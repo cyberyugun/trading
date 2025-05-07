@@ -58,6 +58,7 @@ const PriceAlert: React.FC<PriceAlertProps> = ({ symbol }) => {
 
     setAlerts([...alerts, alert])
     setNewAlert({
+      symbol,
       type: 'price',
       condition: 'above',
       value: 0
