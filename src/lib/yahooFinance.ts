@@ -1,5 +1,5 @@
 // Using a more reliable CORS proxy
-const CORS_PROXY = 'https://api.allorigins.win/raw?url='
+const CORS_PROXY = 'https://cors-anywhere.herokuapp.com/'
 
 export interface StockData {
   timestamp: number
