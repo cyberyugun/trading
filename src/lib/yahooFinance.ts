@@ -1,7 +1,5 @@
-import axios from 'axios'
-
 // Using a more reliable CORS proxy
-const CORS_PROXY = 'https://corsproxy.io/?'
+const CORS_PROXY = 'https://api.allorigins.win/raw?url='
 
 export interface StockData {
   timestamp: number
