@@ -19,6 +19,13 @@ export interface StockQuote {
   regularMarketTime: number
 }
 
+export interface SearchResult {
+  symbol: string
+  name: string
+  exchange: string
+  type: string
+}
+
 export async function getQuote(symbol: string): Promise<StockQuote> {
   try {
     console.log('Fetching quote for symbol:', symbol)
@@ -142,5 +149,35 @@ export async function convertCurrency(from: string, to: string, amount: number):
   } catch (error) {
     console.error('Error converting currency:', error)
     throw new Error('Failed to convert currency')
+  }
+}
+
+export async function searchStocks(query: string): Promise<SearchResult[]> {
+  try {
+    console.log('Searching stocks for query:', query)
+    const url = `${CORS_PROXY}${encodeURIComponent(
+      `https://query2.finance.yahoo.com/v1/finance/search?q=${query}&quotesCount=3&newsCount=0`
+    )}`
+
+    const response = await fetch(url)
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
+    }
+
+    const data = await response.json()
+    
+    if (!data.quotes) {
+      return []
+    }
+
+    return data.quotes.map((quote: any) => ({
+      symbol: quote.symbol,
+      name: quote.shortname || quote.longname || quote.symbol,
+      exchange: quote.exchange,
+      type: quote.quoteType
+    }))
+  } catch (error) {
+    console.error('Error searching stocks:', error)
+    throw new Error('Failed to search stocks. Please try again later.')
   }
 } 
