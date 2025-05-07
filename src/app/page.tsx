@@ -13,6 +13,7 @@ import PriceAlert from '@/components/PriceAlert'
 
 export default function Home() {
   const [timeframe, setTimeframe] = useState('1d')
+  const [range, setRange] = useState('1mo')
   const [symbol, setSymbol] = useState('AAPL') // Default to Apple stock
   const [selectedIndicators, setSelectedIndicators] = useState<string[]>([])
 
@@ -29,13 +30,18 @@ export default function Home() {
               placeholder="Enter stock symbol"
               className="px-4 py-2 bg-secondary rounded text-white"
             />
-            <TimeframeSelector selected={timeframe} onChange={setTimeframe} />
+            <TimeframeSelector 
+              selected={timeframe} 
+              range={range}
+              onChange={setTimeframe} 
+              onRangeChange={setRange}
+            />
           </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-8">
-            <Chart timeframe={timeframe} symbol={symbol} />
+            <Chart timeframe={timeframe} range={range} symbol={symbol} />
             <TechnicalIndicators
               selected={selectedIndicators}
               onChange={setSelectedIndicators}

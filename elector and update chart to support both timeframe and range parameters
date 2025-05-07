@@ -1,0 +1,152 @@
+[1mdiff --git a/src/app/page.tsx b/src/app/page.tsx[m
+[1mindex 726050a..be1bb5f 100644[m
+[1m--- a/src/app/page.tsx[m
+[1m+++ b/src/app/page.tsx[m
+[36m@@ -13,6 +13,7 @@[m [mimport PriceAlert from '@/components/PriceAlert'[m
+ [m
+ export default function Home() {[m
+   const [timeframe, setTimeframe] = useState('1d')[m
+[32m+[m[32m  const [range, setRange] = useState('1mo')[m
+   const [symbol, setSymbol] = useState('AAPL') // Default to Apple stock[m
+   const [selectedIndicators, setSelectedIndicators] = useState<string[]>([])[m
+ [m
+[36m@@ -29,13 +30,18 @@[m [mexport default function Home() {[m
+               placeholder="Enter stock symbol"[m
+               className="px-4 py-2 bg-secondary rounded text-white"[m
+             />[m
+[31m-            <TimeframeSelector selected={timeframe} onChange={setTimeframe} />[m
+[32m+[m[32m            <TimeframeSelector[m[41m [m
+[32m+[m[32m              selected={timeframe}[m[41m [m
+[32m+[m[32m              range={range}[m
+[32m+[m[32m              onChange={setTimeframe}[m[41m [m
+[32m+[m[32m              onRangeChange={setRange}[m
+[32m+[m[32m            />[m
+           </div>[m
+         </div>[m
+ [m
+         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">[m
+           <div className="lg:col-span-2 space-y-8">[m
+[31m-            <Chart timeframe={timeframe} symbol={symbol} />[m
+[32m+[m[32m            <Chart timeframe={timeframe} range={range} symbol={symbol} />[m
+             <TechnicalIndicators[m
+               selected={selectedIndicators}[m
+               onChange={setSelectedIndicators}[m
+[1mdiff --git a/src/components/Chart.tsx b/src/components/Chart.tsx[m
+[1mindex 2bbc708..a19d7e8 100644[m
+[1m--- a/src/components/Chart.tsx[m
+[1m+++ b/src/components/Chart.tsx[m
+[36m@@ -7,10 +7,11 @@[m [mimport { getHistoricalData, StockData } from '@/lib/yahooFinance'[m
+ [m
+ interface ChartProps {[m
+   timeframe: string[m
+[32m+[m[32m  range: string[m
+   symbol: string[m
+ }[m
+ [m
+[31m-export default function Chart({ timeframe, symbol }: ChartProps) {[m
+[32m+[m[32mexport default function Chart({ timeframe, range, symbol }: ChartProps) {[m
+   const chartContainerRef = useRef<HTMLDivElement>(null)[m
+   const chartRef = useRef<IChartApi | null>(null)[m
+   const [isLoading, setIsLoading] = useState(false)[m
+[36m@@ -54,7 +55,7 @@[m [mexport default function Chart({ timeframe, symbol }: ChartProps) {[m
+       setIsLoading(true)[m
+       setError(null)[m
+       try {[m
+[31m-        const data = await getHistoricalData(symbol, timeframe)[m
+[32m+[m[32m        const data = await getHistoricalData(symbol, timeframe, range)[m
+         [m
+         if (!data || data.length === 0) {[m
+           throw new Error('No data available')[m
+[36m@@ -100,7 +101,7 @@[m [mexport default function Chart({ timeframe, symbol }: ChartProps) {[m
+       window.removeEventListener('resize', handleResize)[m
+       chart.remove()[m
+     }[m
+[31m-  }, [timeframe, symbol])[m
+[32m+[m[32m  }, [timeframe, range, symbol])[m
+ [m
+   return ([m
+     <div className="bg-primary rounded-lg p-4">[m
+[1mdiff --git a/src/components/TimeframeSelector.tsx b/src/components/TimeframeSelector.tsx[m
+[1mindex 053b59e..4f984b1 100644[m
+[1m--- a/src/components/TimeframeSelector.tsx[m
+[1m+++ b/src/components/TimeframeSelector.tsx[m
+[36m@@ -4,7 +4,9 @@[m [mimport React from 'react'[m
+ [m
+ interface TimeframeSelectorProps {[m
+   selected: string[m
+[32m+[m[32m  range: string[m
+   onChange: (timeframe: string) => void[m
+[32m+[m[32m  onRangeChange: (range: string) => void[m
+ }[m
+ [m
+ const timeframes = [[m
+[36m@@ -20,22 +22,53 @@[m [mconst timeframes = [[m
+   { label: '3 Months', value: '3mo' }[m
+ ][m
+ [m
+[31m-export default function TimeframeSelector({ selected, onChange }: TimeframeSelectorProps) {[m
+[32m+[m[32mconst ranges = [[m
+[32m+[m[32m  { label: '1 Day', value: '1d' },[m
+[32m+[m[32m  { label: '5 Days', value: '5d' },[m
+[32m+[m[32m  { label: '1 Month', value: '1mo' },[m
+[32m+[m[32m  { label: '3 Months', value: '3mo' },[m
+[32m+[m[32m  { label: '6 Months', value: '6mo' },[m
+[32m+[m[32m  { label: '1 Year', value: '1y' },[m
+[32m+[m[32m  { label: '2 Years', value: '2y' },[m
+[32m+[m[32m  { label: '5 Years', value: '5y' },[m
+[32m+[m[32m  { label: '10 Years', value: '10y' },[m
+[32m+[m[32m  { label: 'YTD', value: 'ytd' },[m
+[32m+[m[32m  { label: 'Max', value: 'max' }[m
+[32m+[m[32m][m
+[32m+[m
+[32m+[m[32mexport default function TimeframeSelector({ selected, range, onChange, onRangeChange }: TimeframeSelectorProps) {[m
+   return ([m
+[31m-    <div className="flex flex-wrap gap-2">[m
+[31m-      {timeframes.map((timeframe) => ([m
+[31m-        <button[m
+[31m-          key={timeframe.value}[m
+[31m-          onClick={() => onChange(timeframe.value)}[m
+[31m-          className={`px-3 py-1 rounded-md text-sm font-medium transition-colors[m
+[31m-            ${selected === timeframe.value[m
+[31m-              ? 'bg-blue-600 text-white'[m
+[31m-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'[m
+[31m-            }`}[m
+[31m-        >[m
+[31m-          {timeframe.label}[m
+[31m-        </button>[m
+[31m-      ))}[m
+[32m+[m[32m    <div className="flex flex-col gap-2">[m
+[32m+[m[32m      <div className="flex flex-wrap gap-2">[m
+[32m+[m[32m        {timeframes.map((timeframe) => ([m
+[32m+[m[32m          <button[m
+[32m+[m[32m            key={timeframe.value}[m
+[32m+[m[32m            onClick={() => onChange(timeframe.value)}[m
+[32m+[m[32m            className={`px-3 py-1 rounded-md text-sm font-medium transition-colors[m
+[32m+[m[32m              ${selected === timeframe.value[m
+[32m+[m[32m                ? 'bg-blue-600 text-white'[m
+[32m+[m[32m                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'[m
+[32m+[m[32m              }`}[m
+[32m+[m[32m          >[m
+[32m+[m[32m            {timeframe.label}[m
+[32m+[m[32m          </button>[m
+[32m+[m[32m        ))}[m
+[32m+[m[32m      </div>[m
+[32m+[m[32m      <div className="flex flex-wrap gap-2">[m
+[32m+[m[32m        {ranges.map((rangeItem) => ([m
+[32m+[m[32m          <button[m
+[32m+[m[32m            key={rangeItem.value}[m
+[32m+[m[32m            onClick={() => onRangeChange(rangeItem.value)}[m
+[32m+[m[32m            className={`px-3 py-1 rounded-md text-sm font-medium transition-colors[m
+[32m+[m[32m              ${range === rangeItem.value[m
+[32m+[m[32m                ? 'bg-blue-600 text-white'[m
+[32m+[m[32m                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'[m
+[32m+[m[32m              }`}[m
+[32m+[m[32m          >[m
+[32m+[m[32m            {rangeItem.label}[m
+[32m+[m[32m          </button>[m
+[32m+[m[32m        ))}[m
+[32m+[m[32m      </div>[m
+     </div>[m
+   )[m
+ } [m
+\ No newline at end of file[m

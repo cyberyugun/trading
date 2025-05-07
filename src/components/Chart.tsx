@@ -7,10 +7,11 @@ import { getHistoricalData, StockData } from '@/lib/yahooFinance'
 
 interface ChartProps {
   timeframe: string
+  range: string
   symbol: string
 }
 
-export default function Chart({ timeframe, symbol }: ChartProps) {
+export default function Chart({ timeframe, range, symbol }: ChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<IChartApi | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -54,7 +55,7 @@ export default function Chart({ timeframe, symbol }: ChartProps) {
       setIsLoading(true)
       setError(null)
       try {
-        const data = await getHistoricalData(symbol, timeframe)
+        const data = await getHistoricalData(symbol, timeframe, range)
         
         if (!data || data.length === 0) {
           throw new Error('No data available')
@@ -100,7 +101,7 @@ export default function Chart({ timeframe, symbol }: ChartProps) {
       window.removeEventListener('resize', handleResize)
       chart.remove()
     }
-  }, [timeframe, symbol])
+  }, [timeframe, range, symbol])
 
   return (
     <div className="bg-primary rounded-lg p-4">
