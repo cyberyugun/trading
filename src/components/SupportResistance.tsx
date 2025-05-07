@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { getHistoricalData } from '@/lib/yahooFinance'
+import { formatIDR } from '@/lib/utils'
 
 interface SupportResistanceProps {
   symbol: string
@@ -95,7 +96,7 @@ export default function SupportResistance({ symbol }: SupportResistanceProps) {
             ) : supportLevels.length > 0 ? (
               supportLevels.map((level, index) => (
                 <div key={index} className="text-lg font-semibold text-green-500">
-                  ${level.toFixed(2)}
+                  {formatIDR(level)}
                 </div>
               ))
             ) : (
@@ -112,7 +113,7 @@ export default function SupportResistance({ symbol }: SupportResistanceProps) {
             ) : resistanceLevels.length > 0 ? (
               resistanceLevels.map((level, index) => (
                 <div key={index} className="text-lg font-semibold text-red-500">
-                  ${level.toFixed(2)}
+                  {formatIDR(level)}
                 </div>
               ))
             ) : (

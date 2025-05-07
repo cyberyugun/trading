@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createChart, ColorType, IChartApi } from 'lightweight-charts'
 import { FiRefreshCw } from 'react-icons/fi'
 import { getHistoricalData, StockData } from '@/lib/yahooFinance'
+import { formatIDR, formatNumber } from '@/lib/utils'
 
 interface ChartProps {
   timeframe: string
@@ -31,6 +32,9 @@ export default function Chart({ timeframe, range, symbol }: ChartProps) {
       },
       width: chartContainerRef.current.clientWidth,
       height: 500,
+      localization: {
+        priceFormatter: (price: number) => formatIDR(price),
+      },
     })
 
     const candlestickSeries = chart.addCandlestickSeries({

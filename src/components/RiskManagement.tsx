@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { getQuote, getHistoricalData } from '@/lib/yahooFinance'
+import { formatIDR } from '@/lib/utils'
 
 interface RiskManagementProps {
   symbol: string
@@ -86,21 +87,21 @@ export default function RiskManagement({ symbol }: RiskManagementProps) {
         <div>
           <label className="block text-sm font-medium text-gray-300">Entry Price</label>
           <div className="mt-1 text-lg font-semibold">
-            {isLoading ? 'Calculating...' : entry ? `$${entry.toFixed(2)}` : '-'}
+            {isLoading ? 'Calculating...' : entry ? formatIDR(entry) : '-'}
           </div>
         </div>
 
         <div>
           <label className="block text-sm font-medium text-gray-300">Take Profit</label>
           <div className="mt-1 text-lg font-semibold text-green-500">
-            {isLoading ? 'Calculating...' : takeProfit ? `$${takeProfit.toFixed(2)}` : '-'}
+            {isLoading ? 'Calculating...' : takeProfit ? formatIDR(takeProfit) : '-'}
           </div>
         </div>
 
         <div>
           <label className="block text-sm font-medium text-gray-300">Stop Loss</label>
           <div className="mt-1 text-lg font-semibold text-red-500">
-            {isLoading ? 'Calculating...' : stopLoss ? `$${stopLoss.toFixed(2)}` : '-'}
+            {isLoading ? 'Calculating...' : stopLoss ? formatIDR(stopLoss) : '-'}
           </div>
         </div>
 

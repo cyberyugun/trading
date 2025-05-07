@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { FiPlus, FiTrash2, FiBell } from 'react-icons/fi'
 import { getQuote, StockQuote } from '@/lib/yahooFinance'
+import { formatIDR } from '@/lib/utils'
 
 interface Alert {
   id: string
@@ -19,14 +20,19 @@ interface PriceAlertProps {
 
 const PriceAlert: React.FC<PriceAlertProps> = ({ symbol }) => {
   const [alerts, setAlerts] = useState<Alert[]>([])
-  const [newAlert, setNewAlert] = useState<Partial<Alert>>({
+  const [currentPrice, setCurrentPrice] = useState<number>(0)
+  const [error, setError] = useState<string | null>(null)
+  const [newAlert, setNewAlert] = useState<Omit<Alert, 'id' | 'triggered'>>({
+    symbol,
     type: 'price',
     condition: 'above',
     value: 0
   })
-  const [currentPrice, setCurrentPrice] = useState<number>(0)
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+
+  // Update newAlert when symbol changes
+  useEffect(() => {
+    setNewAlert(prev => ({ ...prev, symbol }))
+  }, [symbol])
 
   const fetchCurrentPrice = async () => {
     try {
@@ -104,12 +110,24 @@ const PriceAlert: React.FC<PriceAlertProps> = ({ symbol }) => {
     return () => clearInterval(interval)
   }, [symbol])
 
+  const handleAlertTypeChange = (type: 'price' | 'indicator') => {
+    setNewAlert(prev => ({ ...prev, type }))
+  }
+
+  const handleConditionChange = (condition: 'above' | 'below') => {
+    setNewAlert(prev => ({ ...prev, condition }))
+  }
+
+  const handleValueChange = (value: number) => {
+    setNewAlert(prev => ({ ...prev, value }))
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h2 className="text-xl font-semibold">Price Alerts</h2>
         <div className="text-sm text-gray-400">
-          Current Price: ${currentPrice.toFixed(2)}
+          Current Price: {formatIDR(currentPrice)}
         </div>
       </div>
 
@@ -119,13 +137,13 @@ const PriceAlert: React.FC<PriceAlertProps> = ({ symbol }) => {
         </div>
       )}
 
-      <div className="bg-secondary rounded p-4">
+      <div className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
             <label className="block text-sm text-gray-400">Alert Type</label>
             <select
               value={newAlert.type}
-              onChange={(e) => setNewAlert({ ...newAlert, type: e.target.value as 'price' | 'indicator' })}
+              onChange={(e) => handleAlertTypeChange(e.target.value as 'price' | 'indicator')}
               className="w-full px-3 py-2 bg-primary rounded text-white"
             >
               <option value="price">Price</option>
@@ -137,7 +155,7 @@ const PriceAlert: React.FC<PriceAlertProps> = ({ symbol }) => {
             <label className="block text-sm text-gray-400">Condition</label>
             <select
               value={newAlert.condition}
-              onChange={(e) => setNewAlert({ ...newAlert, condition: e.target.value as 'above' | 'below' })}
+              onChange={(e) => handleConditionChange(e.target.value as 'above' | 'below')}
               className="w-full px-3 py-2 bg-primary rounded text-white"
             >
               <option value="above">Above</option>
@@ -151,7 +169,7 @@ const PriceAlert: React.FC<PriceAlertProps> = ({ symbol }) => {
               <input
                 type="number"
                 value={newAlert.value || ''}
-                onChange={(e) => setNewAlert({ ...newAlert, value: Number(e.target.value) })}
+                onChange={(e) => handleValueChange(Number(e.target.value))}
                 className="flex-1 px-3 py-2 bg-primary rounded text-white"
                 placeholder="Enter value"
               />
@@ -176,7 +194,7 @@ const PriceAlert: React.FC<PriceAlertProps> = ({ symbol }) => {
               <FiBell className={`w-5 h-5 ${alert.triggered ? 'text-green-400' : 'text-gray-400'}`} />
               <div>
                 <div className="font-medium">
-                  {alert.symbol} {alert.condition} ${alert.value}
+                  {alert.symbol} {alert.condition} {formatIDR(alert.value)}
                 </div>
                 <div className="text-sm text-gray-400">
                   {alert.type === 'price' ? 'Price Alert' : 'Technical Indicator Alert'}
