@@ -1,176 +1,117 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { FiRefreshCw } from 'react-icons/fi'
-import { getQuote, getHistoricalData, StockData } from '@/lib/yahooFinance'
-
-interface TradeLevels {
-  entry: number
-  takeProfit: number
-  stopLoss: number
-  riskRewardRatio: number
-}
+import { getQuote, getHistoricalData } from '@/lib/yahooFinance'
 
 interface RiskManagementProps {
   symbol: string
 }
 
-const RiskManagement: React.FC<RiskManagementProps> = ({ symbol }) => {
-  const [tradeLevels, setTradeLevels] = useState<TradeLevels>({
-    entry: 0,
-    takeProfit: 0,
-    stopLoss: 0,
-    riskRewardRatio: 0
-  })
-  const [isLoading, setIsLoading] = useState(false)
-  const [position, setPosition] = useState<'long' | 'short'>('long')
+export default function RiskManagement({ symbol }: RiskManagementProps) {
+  const [entry, setEntry] = useState<number | null>(null)
+  const [takeProfit, setTakeProfit] = useState<number | null>(null)
+  const [stopLoss, setStopLoss] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
 
-  const calculateRRR = (entry: number, tp: number, sl: number, pos: 'long' | 'short') => {
-    if (pos === 'long') {
-      const risk = entry - sl
-      const reward = tp - entry
-      return risk !== 0 ? (reward / risk).toFixed(2) : '0'
-    } else {
-      const risk = sl - entry
-      const reward = entry - tp
-      return risk !== 0 ? (reward / risk).toFixed(2) : '0'
-    }
-  }
-
-  const calculateTradeLevels = (stockData: StockData[], currentPrice: number) => {
-    const recentData = stockData.slice(-20) // Get last 20 days of data
-    const volatility = calculateVolatility(recentData)
-    
-    let entry = currentPrice
-    let takeProfit, stopLoss
-
-    if (position === 'long') {
-      takeProfit = entry + (volatility * 2) // 2x volatility for TP
-      stopLoss = entry - volatility // 1x volatility for SL
-    } else {
-      takeProfit = entry - (volatility * 2) // 2x volatility for TP
-      stopLoss = entry + volatility // 1x volatility for SL
-    }
-
-    const rrr = calculateRRR(entry, takeProfit, stopLoss, position)
-
-    return {
-      entry,
-      takeProfit,
-      stopLoss,
-      riskRewardRatio: parseFloat(rrr)
-    }
-  }
-
-  const calculateVolatility = (data: StockData[]): number => {
-    const returns = data.slice(1).map((d, i) => 
-      Math.log(d.close / data[i].close)
-    )
-    const mean = returns.reduce((a, b) => a + b, 0) / returns.length
-    const variance = returns.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / returns.length
-    return Math.sqrt(variance) * data[data.length - 1].close
-  }
-
-  const fetchTradeLevels = async () => {
+  const calculateLevels = async () => {
     setIsLoading(true)
     setError(null)
     try {
-      const [quote, historicalData] = await Promise.all([
-        getQuote(symbol),
-        getHistoricalData(symbol, '1d', '1mo')
-      ])
+      // Get current price
+      const quote = await getQuote(symbol)
+      const currentPrice = quote.regularMarketPrice
 
-      const levels = calculateTradeLevels(historicalData, quote.regularMarketPrice)
-      setTradeLevels(levels)
-    } catch (error) {
-      console.error('Error fetching trade levels:', error)
-      setError('Failed to fetch stock data. Please try again.')
+      // Get historical data for volatility calculation
+      const historicalData = await getHistoricalData(symbol, '1d', '1mo')
+      
+      if (!historicalData || historicalData.length === 0) {
+        throw new Error('No historical data available')
+      }
+
+      // Calculate average true range (ATR) for volatility
+      const atr = calculateATR(historicalData)
+      
+      // Set entry price as current price
+      setEntry(currentPrice)
+      
+      // Set take profit at 2x ATR above entry
+      setTakeProfit(currentPrice + (2 * atr))
+      
+      // Set stop loss at 1x ATR below entry
+      setStopLoss(currentPrice - atr)
+    } catch (err) {
+      console.error('Error calculating risk levels:', err)
+      setError(err instanceof Error ? err.message : 'Failed to calculate risk levels')
     } finally {
       setIsLoading(false)
     }
   }
 
+  const calculateATR = (data: any[]) => {
+    const trueRanges = data.slice(1).map((d, i) => {
+      const high = d.high
+      const low = d.low
+      const prevClose = data[i].close
+      return Math.max(
+        high - low,
+        Math.abs(high - prevClose),
+        Math.abs(low - prevClose)
+      )
+    })
+    
+    // Calculate 14-period ATR
+    const period = 14
+    const atr = trueRanges.slice(-period).reduce((a, b) => a + b, 0) / period
+    return atr
+  }
+
   useEffect(() => {
     if (symbol) {
-      fetchTradeLevels()
+      calculateLevels()
     }
-  }, [symbol, position])
+  }, [symbol])
 
   return (
-    <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <h2 className="text-xl font-semibold">Risk Management</h2>
-        <button
-          onClick={fetchTradeLevels}
-          disabled={isLoading}
-          className="flex items-center space-x-2 px-3 py-1 bg-accent text-white rounded hover:bg-accent-hover disabled:opacity-50"
-        >
-          <FiRefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-          <span>Refresh</span>
-        </button>
-      </div>
-
+    <div className="bg-primary rounded-lg p-4">
+      <h2 className="text-xl font-bold mb-4">Risk Management</h2>
+      
       {error && (
-        <div className="bg-red-500/10 border border-red-500 text-red-500 px-4 py-2 rounded">
+        <div className="mb-4 p-4 bg-red-500/10 border border-red-500/20 rounded-md text-red-500">
           {error}
         </div>
       )}
 
-      <div className="flex space-x-4 mb-4">
+      <div className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-300">Entry Price</label>
+          <div className="mt-1 text-lg font-semibold">
+            {isLoading ? 'Calculating...' : entry ? `$${entry.toFixed(2)}` : '-'}
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-300">Take Profit</label>
+          <div className="mt-1 text-lg font-semibold text-green-500">
+            {isLoading ? 'Calculating...' : takeProfit ? `$${takeProfit.toFixed(2)}` : '-'}
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-300">Stop Loss</label>
+          <div className="mt-1 text-lg font-semibold text-red-500">
+            {isLoading ? 'Calculating...' : stopLoss ? `$${stopLoss.toFixed(2)}` : '-'}
+          </div>
+        </div>
+
         <button
-          onClick={() => setPosition('long')}
-          className={`px-4 py-2 rounded ${
-            position === 'long'
-              ? 'bg-green-500 text-white'
-              : 'bg-gray-700 text-gray-300'
-          }`}
+          onClick={calculateLevels}
+          disabled={isLoading}
+          className="w-full px-4 py-2 bg-accent text-white rounded hover:bg-accent-hover disabled:opacity-50"
         >
-          Long
+          {isLoading ? 'Calculating...' : 'Recalculate'}
         </button>
-        <button
-          onClick={() => setPosition('short')}
-          className={`px-4 py-2 rounded ${
-            position === 'short'
-              ? 'bg-red-500 text-white'
-              : 'bg-gray-700 text-gray-300'
-          }`}
-        >
-          Short
-        </button>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <div className="bg-secondary rounded p-4">
-          <div className="text-sm text-gray-400">Entry Price</div>
-          <div className="text-lg font-medium text-accent">
-            ${tradeLevels.entry.toFixed(2)}
-          </div>
-        </div>
-
-        <div className="bg-secondary rounded p-4">
-          <div className="text-sm text-gray-400">Take Profit</div>
-          <div className="text-lg font-medium text-green-400">
-            ${tradeLevels.takeProfit.toFixed(2)}
-          </div>
-        </div>
-
-        <div className="bg-secondary rounded p-4">
-          <div className="text-sm text-gray-400">Stop Loss</div>
-          <div className="text-lg font-medium text-red-400">
-            ${tradeLevels.stopLoss.toFixed(2)}
-          </div>
-        </div>
-
-        <div className="bg-secondary rounded p-4">
-          <div className="text-sm text-gray-400">Risk/Reward Ratio</div>
-          <div className="text-lg font-medium text-accent">
-            {tradeLevels.riskRewardRatio.toFixed(2)}
-          </div>
-        </div>
       </div>
     </div>
   )
-}
-
-export default RiskManagement 
+} 
