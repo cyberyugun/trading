@@ -10,69 +10,87 @@ interface ChartProps {
   symbol: string
 }
 
-const Chart: React.FC<ChartProps> = ({ timeframe, symbol }) => {
+export default function Chart({ timeframe, symbol }: ChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<IChartApi | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-
-  const fetchData = async () => {
-    setIsLoading(true)
-    setError(null)
-    try {
-      const data = await getHistoricalData(symbol, timeframe, '3mo')
-      
-      if (chartRef.current) {
-        const candlestickSeries = chartRef.current.addCandlestickSeries({
-          upColor: '#26a69a',
-          downColor: '#ef5350',
-          borderVisible: false,
-          wickUpColor: '#26a69a',
-          wickDownColor: '#ef5350',
-        })
-        
-        const formattedData = data.map(d => ({
-          time: new Date(d.timestamp * 1000).toISOString().split('T')[0],
-          open: d.open,
-          high: d.high,
-          low: d.low,
-          close: d.close
-        }))
-        
-        candlestickSeries.setData(formattedData)
-      }
-    } catch (error) {
-      console.error('Error fetching chart data:', error)
-      setError('Failed to fetch chart data. Please try again.')
-    } finally {
-      setIsLoading(false)
-    }
-  }
 
   useEffect(() => {
     if (!chartContainerRef.current) return
 
     const chart = createChart(chartContainerRef.current, {
       layout: {
-        background: { type: ColorType.Solid, color: '#2d2d2d' },
+        background: { type: ColorType.Solid, color: '#1a1a1a' },
         textColor: '#d1d4dc',
       },
       grid: {
-        vertLines: { color: '#2d2d2d' },
-        horzLines: { color: '#2d2d2d' },
+        vertLines: { color: '#2B2B43' },
+        horzLines: { color: '#2B2B43' },
       },
       width: chartContainerRef.current.clientWidth,
       height: 500,
     })
 
+    const candlestickSeries = chart.addCandlestickSeries({
+      upColor: '#26a69a',
+      downColor: '#ef5350',
+      borderVisible: false,
+      wickUpColor: '#26a69a',
+      wickDownColor: '#ef5350',
+    })
+
+    const volumeSeries = chart.addHistogramSeries({
+      color: '#26a69a',
+      priceFormat: {
+        type: 'volume',
+      },
+      priceScaleId: '',
+    })
+
     chartRef.current = chart
+
+    const fetchData = async () => {
+      setIsLoading(true)
+      setError(null)
+      try {
+        const data = await getHistoricalData(symbol, timeframe)
+        
+        if (!data || data.length === 0) {
+          throw new Error('No data available')
+        }
+
+        const candleData = data.map(d => ({
+          time: new Date(d.timestamp * 1000).toISOString().split('T')[0],
+          open: d.open,
+          high: d.high,
+          low: d.low,
+          close: d.close
+        }))
+
+        const volumeData = data.map(d => ({
+          time: new Date(d.timestamp * 1000).toISOString().split('T')[0],
+          value: d.volume,
+          color: d.close >= d.open ? '#26a69a' : '#ef5350'
+        }))
+
+        candlestickSeries.setData(candleData)
+        volumeSeries.setData(volumeData)
+
+        chart.timeScale().fitContent()
+      } catch (err) {
+        console.error('Error in Chart component:', err)
+        setError(err instanceof Error ? err.message : 'Failed to fetch stock data')
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
     fetchData()
 
     const handleResize = () => {
       if (chartContainerRef.current) {
-        chart.applyOptions({
-          width: chartContainerRef.current.clientWidth,
-        })
+        chart.applyOptions({ width: chartContainerRef.current.clientWidth })
       }
     }
 
@@ -85,10 +103,12 @@ const Chart: React.FC<ChartProps> = ({ timeframe, symbol }) => {
   }, [timeframe, symbol])
 
   return (
-    <div className="w-full">
+    <div className="bg-primary rounded-lg p-4">
       <div className="flex justify-end mb-4">
         <button
-          onClick={fetchData}
+          onClick={() => {
+            // Implement the refresh logic here
+          }}
           disabled={isLoading}
           className="flex items-center space-x-2 px-4 py-2 bg-accent text-white rounded hover:bg-accent-hover disabled:opacity-50"
         >
@@ -98,7 +118,7 @@ const Chart: React.FC<ChartProps> = ({ timeframe, symbol }) => {
       </div>
 
       {error && (
-        <div className="bg-red-500/10 border border-red-500 text-red-500 px-4 py-2 rounded mb-4">
+        <div className="mt-4 p-4 bg-red-500/10 border border-red-500/20 rounded-md text-red-500">
           {error}
         </div>
       )}
@@ -106,6 +126,4 @@ const Chart: React.FC<ChartProps> = ({ timeframe, symbol }) => {
       <div ref={chartContainerRef} className="w-full" />
     </div>
   )
-}
-
-export default Chart 
+} 
