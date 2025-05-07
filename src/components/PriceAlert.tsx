@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { FiPlus, FiTrash2, FiBell } from 'react-icons/fi'
-import { getQuote, StockQuote } from '@/lib/yahooFinance'
+import { getQuote, StockQuote, convertCurrency } from '@/lib/yahooFinance'
 import { formatIDR } from '@/lib/utils'
 
 interface Alert {
@@ -21,6 +21,7 @@ interface PriceAlertProps {
 const PriceAlert: React.FC<PriceAlertProps> = ({ symbol }) => {
   const [alerts, setAlerts] = useState<Alert[]>([])
   const [currentPrice, setCurrentPrice] = useState<number>(0)
+  const [convertedPrice, setConvertedPrice] = useState<number>(0)
   const [error, setError] = useState<string | null>(null)
   const [newAlert, setNewAlert] = useState<Omit<Alert, 'id' | 'triggered'>>({
     symbol,
@@ -38,31 +39,43 @@ const PriceAlert: React.FC<PriceAlertProps> = ({ symbol }) => {
     try {
       const quote = await getQuote(symbol)
       setCurrentPrice(quote.regularMarketPrice)
+      
+      // Convert USD to IDR
+      const converted = await convertCurrency('USD', 'IDR', quote.regularMarketPrice)
+      setConvertedPrice(converted)
     } catch (error) {
       console.error('Error fetching current price:', error)
       setError('Failed to fetch current price')
     }
   }
 
-  const addAlert = () => {
+  const addAlert = async () => {
     if (!newAlert.value) return
 
-    const alert: Alert = {
-      id: Date.now().toString(),
-      symbol,
-      type: newAlert.type || 'price',
-      condition: newAlert.condition || 'above',
-      value: newAlert.value,
-      triggered: false
-    }
+    try {
+      // Convert IDR to USD for storage
+      const usdValue = await convertCurrency('IDR', 'USD', newAlert.value)
+      
+      const alert: Alert = {
+        id: Date.now().toString(),
+        symbol,
+        type: newAlert.type || 'price',
+        condition: newAlert.condition || 'above',
+        value: usdValue,
+        triggered: false
+      }
 
-    setAlerts([...alerts, alert])
-    setNewAlert({
-      symbol,
-      type: 'price',
-      condition: 'above',
-      value: 0
-    })
+      setAlerts([...alerts, alert])
+      setNewAlert({
+        symbol,
+        type: 'price',
+        condition: 'above',
+        value: 0
+      })
+    } catch (error) {
+      console.error('Error adding alert:', error)
+      setError('Failed to add alert')
+    }
   }
 
   const removeAlert = (id: string) => {
@@ -81,7 +94,7 @@ const PriceAlert: React.FC<PriceAlertProps> = ({ symbol }) => {
         // Show browser notification
         if (Notification.permission === 'granted') {
           new Notification(`Price Alert: ${symbol}`, {
-            body: `${symbol} is now ${alert.condition} ${alert.value}`,
+            body: `${symbol} is now ${alert.condition} ${formatIDR(convertedPrice)}`,
             icon: '/favicon.ico'
           })
         }
@@ -128,7 +141,7 @@ const PriceAlert: React.FC<PriceAlertProps> = ({ symbol }) => {
       <div className="flex justify-between items-center">
         <h2 className="text-xl font-semibold">Price Alerts</h2>
         <div className="text-sm text-gray-400">
-          Current Price: {formatIDR(currentPrice)}
+          Current Price: {formatIDR(convertedPrice)}
         </div>
       </div>
 
@@ -165,14 +178,14 @@ const PriceAlert: React.FC<PriceAlertProps> = ({ symbol }) => {
           </div>
 
           <div className="space-y-2 col-span-2">
-            <label className="block text-sm text-gray-400">Value</label>
+            <label className="block text-sm text-gray-400">Value (IDR)</label>
             <div className="flex space-x-2">
               <input
                 type="number"
                 value={newAlert.value || ''}
                 onChange={(e) => handleValueChange(Number(e.target.value))}
                 className="flex-1 px-3 py-2 bg-primary rounded text-white"
-                placeholder="Enter value"
+                placeholder="Enter value in IDR"
               />
               <button
                 onClick={addAlert}
