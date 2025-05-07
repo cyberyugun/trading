@@ -1,167 +1,134 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { FiRefreshCw } from 'react-icons/fi'
-import { getHistoricalData, StockData } from '@/lib/yahooFinance'
-
-interface Level {
-  price: number
-  strength: number
-  type: 'support' | 'resistance'
-}
+import { getHistoricalData } from '@/lib/yahooFinance'
 
 interface SupportResistanceProps {
   symbol: string
 }
 
-const SupportResistance: React.FC<SupportResistanceProps> = ({ symbol }) => {
-  const [levels, setLevels] = useState<Level[]>([])
-  const [isLoading, setIsLoading] = useState(false)
+export default function SupportResistance({ symbol }: SupportResistanceProps) {
+  const [supportLevels, setSupportLevels] = useState<number[]>([])
+  const [resistanceLevels, setResistanceLevels] = useState<number[]>([])
   const [error, setError] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
 
-  const calculateLevels = (stockData: StockData[]) => {
-    const levels: Level[] = []
-    const windowSize = 20 // Lookback period for finding levels
-    const prices = stockData.map(d => d.close)
-    const volumes = stockData.map(d => d.volume)
-
-    // Find potential support and resistance levels
-    for (let i = windowSize; i < prices.length - windowSize; i++) {
-      const currentPrice = prices[i]
-      const leftPrices = prices.slice(i - windowSize, i)
-      const rightPrices = prices.slice(i + 1, i + windowSize + 1)
-      
-      // Check if price is a local minimum (support)
-      if (currentPrice === Math.min(...leftPrices, ...rightPrices)) {
-        const strength = calculateStrength(prices, volumes, i, 'support')
-        levels.push({
-          price: currentPrice,
-          strength,
-          type: 'support'
-        })
-      }
-      
-      // Check if price is a local maximum (resistance)
-      if (currentPrice === Math.max(...leftPrices, ...rightPrices)) {
-        const strength = calculateStrength(prices, volumes, i, 'resistance')
-        levels.push({
-          price: currentPrice,
-          strength,
-          type: 'resistance'
-        })
-      }
-    }
-
-    // Sort levels by strength and remove duplicates
-    return levels
-      .sort((a, b) => b.strength - a.strength)
-      .filter((level, index, self) =>
-        index === self.findIndex(l => 
-          Math.abs(l.price - level.price) < 0.01
-        )
-      )
-  }
-
-  const calculateStrength = (
-    prices: number[],
-    volumes: number[],
-    index: number,
-    type: 'support' | 'resistance'
-  ): number => {
-    const price = prices[index]
-    const volume = volumes[index]
-    const priceRange = Math.max(...prices) - Math.min(...prices)
-    const volumeRange = Math.max(...volumes) - Math.min(...volumes)
-    
-    // Calculate strength based on price and volume
-    const priceStrength = 1 - (Math.abs(price - prices[index - 1]) / priceRange)
-    const volumeStrength = volume / volumeRange
-    
-    return (priceStrength + volumeStrength) / 2
-  }
-
-  const fetchLevels = async () => {
+  const calculateLevels = async () => {
     setIsLoading(true)
     setError(null)
     try {
-      const stockData = await getHistoricalData(symbol, '1d', '3mo')
-      const calculatedLevels = calculateLevels(stockData)
-      setLevels(calculatedLevels)
-    } catch (error) {
-      console.error('Error calculating support/resistance levels:', error)
-      setError('Failed to fetch stock data. Please try again.')
+      // Get historical data
+      const data = await getHistoricalData(symbol, '1d', '3mo')
+      
+      if (!data || data.length === 0) {
+        throw new Error('No historical data available')
+      }
+
+      // Calculate support and resistance levels
+      const { support, resistance } = findSupportResistanceLevels(data)
+      setSupportLevels(support)
+      setResistanceLevels(resistance)
+    } catch (err) {
+      console.error('Error calculating support/resistance levels:', err)
+      setError(err instanceof Error ? err.message : 'Failed to calculate support/resistance levels')
     } finally {
       setIsLoading(false)
     }
   }
 
+  const findSupportResistanceLevels = (data: any[]) => {
+    const prices = data.map(d => d.close)
+    const levels = new Set<number>()
+    
+    // Find local minima and maxima
+    for (let i = 2; i < prices.length - 2; i++) {
+      // Check for local minima (support)
+      if (prices[i] < prices[i-1] && prices[i] < prices[i-2] &&
+          prices[i] < prices[i+1] && prices[i] < prices[i+2]) {
+        levels.add(prices[i])
+      }
+      
+      // Check for local maxima (resistance)
+      if (prices[i] > prices[i-1] && prices[i] > prices[i-2] &&
+          prices[i] > prices[i+1] && prices[i] > prices[i+2]) {
+        levels.add(prices[i])
+      }
+    }
+    
+    // Convert to arrays and sort
+    const sortedLevels = Array.from(levels).sort((a, b) => a - b)
+    const currentPrice = prices[prices.length - 1]
+    
+    // Split into support and resistance
+    const support = sortedLevels.filter(level => level < currentPrice)
+    const resistance = sortedLevels.filter(level => level > currentPrice)
+    
+    // Take top 3 levels
+    return {
+      support: support.slice(-3),
+      resistance: resistance.slice(0, 3)
+    }
+  }
+
   useEffect(() => {
     if (symbol) {
-      fetchLevels()
+      calculateLevels()
     }
   }, [symbol])
 
   return (
-    <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <h2 className="text-xl font-semibold">Support & Resistance</h2>
-        <button
-          onClick={fetchLevels}
-          disabled={isLoading}
-          className="flex items-center space-x-2 px-3 py-1 bg-accent text-white rounded hover:bg-accent-hover disabled:opacity-50"
-        >
-          <FiRefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-          <span>Refresh</span>
-        </button>
-      </div>
-
+    <div className="bg-primary rounded-lg p-4">
+      <h2 className="text-xl font-bold mb-4">Support & Resistance</h2>
+      
       {error && (
-        <div className="bg-red-500/10 border border-red-500 text-red-500 px-4 py-2 rounded">
+        <div className="mb-4 p-4 bg-red-500/10 border border-red-500/20 rounded-md text-red-500">
           {error}
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <h3 className="text-lg font-medium text-green-400">Support Levels</h3>
-          {levels
-            .filter(level => level.type === 'support')
-            .map((level, index) => (
-              <div
-                key={`support-${index}`}
-                className="bg-secondary rounded p-3"
-              >
-                <div className="flex justify-between items-center">
-                  <span className="text-white">${level.price.toFixed(2)}</span>
-                  <span className="text-gray-400">
-                    Strength: {(level.strength * 100).toFixed(1)}%
-                  </span>
+      <div className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-300">Support Levels</label>
+          <div className="mt-1 space-y-1">
+            {isLoading ? (
+              <div className="text-gray-400">Calculating...</div>
+            ) : supportLevels.length > 0 ? (
+              supportLevels.map((level, index) => (
+                <div key={index} className="text-lg font-semibold text-green-500">
+                  ${level.toFixed(2)}
                 </div>
-              </div>
-            ))}
+              ))
+            ) : (
+              <div className="text-gray-400">No support levels found</div>
+            )}
+          </div>
         </div>
 
-        <div className="space-y-2">
-          <h3 className="text-lg font-medium text-red-400">Resistance Levels</h3>
-          {levels
-            .filter(level => level.type === 'resistance')
-            .map((level, index) => (
-              <div
-                key={`resistance-${index}`}
-                className="bg-secondary rounded p-3"
-              >
-                <div className="flex justify-between items-center">
-                  <span className="text-white">${level.price.toFixed(2)}</span>
-                  <span className="text-gray-400">
-                    Strength: {(level.strength * 100).toFixed(1)}%
-                  </span>
+        <div>
+          <label className="block text-sm font-medium text-gray-300">Resistance Levels</label>
+          <div className="mt-1 space-y-1">
+            {isLoading ? (
+              <div className="text-gray-400">Calculating...</div>
+            ) : resistanceLevels.length > 0 ? (
+              resistanceLevels.map((level, index) => (
+                <div key={index} className="text-lg font-semibold text-red-500">
+                  ${level.toFixed(2)}
                 </div>
-              </div>
-            ))}
+              ))
+            ) : (
+              <div className="text-gray-400">No resistance levels found</div>
+            )}
+          </div>
         </div>
+
+        <button
+          onClick={calculateLevels}
+          disabled={isLoading}
+          className="w-full px-4 py-2 bg-accent text-white rounded hover:bg-accent-hover disabled:opacity-50"
+        >
+          {isLoading ? 'Calculating...' : 'Recalculate'}
+        </button>
       </div>
     </div>
   )
-}
-
-export default SupportResistance 
+} 
