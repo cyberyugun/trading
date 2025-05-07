@@ -29,10 +29,7 @@ export default function Home() {
               placeholder="Enter stock symbol"
               className="px-4 py-2 bg-secondary rounded text-white"
             />
-            <TimeframeSelector
-              timeframe={timeframe}
-              onTimeframeChange={setTimeframe}
-            />
+            <TimeframeSelector selected={timeframe} onChange={setTimeframe} />
           </div>
         </div>
 
