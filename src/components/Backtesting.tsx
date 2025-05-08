@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { FiRefreshCw } from 'react-icons/fi'
 import { getHistoricalData, StockData } from '@/lib/yahooFinance'
+import { formatIDR } from '@/lib/utils'
 
 interface Trade {
   entryDate: string
@@ -241,7 +242,7 @@ const Backtesting: React.FC<BacktestingProps> = ({ symbol }) => {
             <div className="bg-secondary rounded p-4">
               <div className="text-sm text-gray-400">Total Profit</div>
               <div className="text-lg font-medium text-green-400">
-                ${result.totalProfit.toFixed(2)}
+                {formatIDR(result.totalProfit)}
               </div>
             </div>
 

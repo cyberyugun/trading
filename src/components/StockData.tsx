@@ -11,6 +11,7 @@ import {
   Legend,
   ResponsiveContainer
 } from 'recharts';
+import { formatIDR } from '@/lib/utils'
 
 interface StockData {
   date: string;
@@ -122,11 +123,11 @@ export default function StockData() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div>
                 <p className="text-gray-600">Current Price</p>
-                <p className="text-xl font-semibold">${stockData.info.currentPrice?.toFixed(2)}</p>
+                <p className="text-xl font-semibold">{formatIDR(stockData.info.currentPrice)}</p>
               </div>
               <div>
                 <p className="text-gray-600">Market Cap</p>
-                <p className="text-xl font-semibold">${(stockData.info.marketCap / 1e9).toFixed(2)}B</p>
+                <p className="text-xl font-semibold">{formatIDR(stockData.info.marketCap)}</p>
               </div>
               <div>
                 <p className="text-gray-600">P/E Ratio</p>

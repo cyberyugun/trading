@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { useWebSocket } from './WebSocketProvider';
+import { formatIDR } from '@/lib/utils'
 
 interface RealTimeStockDataProps {
   symbols: string[];
@@ -60,11 +61,11 @@ export default function RealTimeStockData({ symbols }: RealTimeStockDataProps) {
               <div className="flex justify-between items-start">
                 <div>
                   <h3 className="text-lg font-semibold">{symbol}</h3>
-                  <p className="text-2xl font-bold">${data.price.toFixed(2)}</p>
+                  <p className="text-2xl font-bold">{formatIDR(data.price)}</p>
                 </div>
                 <div className={`text-right ${data.change >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                   <p className="font-medium">
-                    {data.change >= 0 ? '+' : ''}{data.change.toFixed(2)}
+                    {data.change >= 0 ? '+' : ''}{formatIDR(data.change)}
                   </p>
                   <p className="text-sm">
                     {data.change >= 0 ? '+' : ''}{data.changePercent.toFixed(2)}%

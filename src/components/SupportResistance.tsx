@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { getHistoricalData } from '@/lib/yahooFinance'
 import { TimeInterval, TimeRange } from '@/types/timeframe'
 import TimeframeSelector from './TimeframeSelector'
+import { formatIDR } from '@/lib/utils'
 
 interface SupportResistanceProps {
   symbol: string
@@ -95,7 +96,7 @@ export default function SupportResistance({ symbol }: SupportResistanceProps) {
             <div className="space-y-1">
               {levels.support.map((level, index) => (
                 <div key={index} className="text-green-600">
-                  ${level.toFixed(2)}
+                  {formatIDR(level)}
                 </div>
               ))}
             </div>
@@ -106,7 +107,7 @@ export default function SupportResistance({ symbol }: SupportResistanceProps) {
             <div className="space-y-1">
               {levels.resistance.map((level, index) => (
                 <div key={index} className="text-red-600">
-                  ${level.toFixed(2)}
+                  {formatIDR(level)}
                 </div>
               ))}
             </div>

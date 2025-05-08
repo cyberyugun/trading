@@ -30,7 +30,7 @@ export async function getQuote(symbol: string): Promise<StockQuote> {
   try {
     console.log('Fetching quote for symbol:', symbol)
     const url = `${CORS_PROXY}${encodeURIComponent(
-      `https://query2.finance.yahoo.com/v8/finance/quote?symbols=${symbol}`
+      `https://query2.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1d`
     )}`
     console.log('Request URL:', url)
 
@@ -52,21 +52,24 @@ export async function getQuote(symbol: string): Promise<StockQuote> {
       throw new Error('Invalid response from server')
     }
     
-    if (!data.quoteResponse?.result?.[0]) {
+    if (!data.chart?.result?.[0]?.indicators?.quote?.[0]) {
       console.error('Invalid response format:', data)
       throw new Error('Invalid response format')
     }
 
-    const quote = data.quoteResponse.result[0]
+    const quote = data.chart.result[0].indicators.quote[0]
+    const meta = data.chart.result[0].meta
+    const lastIndex = quote.close.length - 1
+
     console.log('Parsed quote:', quote)
     
     return {
-      symbol: quote.symbol,
-      regularMarketPrice: quote.regularMarketPrice,
-      regularMarketChange: quote.regularMarketChange,
-      regularMarketChangePercent: quote.regularMarketChangePercent,
-      regularMarketVolume: quote.regularMarketVolume,
-      regularMarketTime: quote.regularMarketTime
+      symbol: meta.symbol,
+      regularMarketPrice: quote.close[lastIndex],
+      regularMarketChange: quote.close[lastIndex] - quote.open[lastIndex],
+      regularMarketChangePercent: ((quote.close[lastIndex] - quote.open[lastIndex]) / quote.open[lastIndex]) * 100,
+      regularMarketVolume: quote.volume[lastIndex],
+      regularMarketTime: meta.regularMarketTime
     }
   } catch (error) {
     console.error('Error fetching quote:', error)
