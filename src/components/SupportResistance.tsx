@@ -77,9 +77,9 @@ export default function SupportResistance({ symbol }: SupportResistanceProps) {
       <div className="mb-4">
         <h2 className="text-xl font-semibold mb-2">Support & Resistance Levels</h2>
         <TimeframeSelector
-          interval={interval}
+          selected={interval}
           range={range}
-          onIntervalChange={setInterval}
+          onChange={setInterval}
           onRangeChange={setRange}
         />
       </div>

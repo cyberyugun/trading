@@ -99,9 +99,9 @@ export default function RiskManagement({ symbol }: RiskManagementProps) {
       <div className="mb-4">
         <h2 className="text-xl font-semibold mb-2">Risk Management Analysis</h2>
         <TimeframeSelector
-          interval={interval}
+          selected={interval}
           range={range}
-          onIntervalChange={setInterval}
+          onChange={setInterval}
           onRangeChange={setRange}
         />
       </div>

@@ -3,16 +3,16 @@
 import { TimeInterval, TimeRange, timeIntervalOptions, timeRangeOptions } from '@/types/timeframe';
 
 interface TimeframeSelectorProps {
-  interval: TimeInterval;
+  selected: TimeInterval;
   range: TimeRange;
-  onIntervalChange: (interval: TimeInterval) => void;
+  onChange: (timeframe: TimeInterval) => void;
   onRangeChange: (range: TimeRange) => void;
 }
 
 export default function TimeframeSelector({
-  interval,
+  selected,
   range,
-  onIntervalChange,
+  onChange,
   onRangeChange,
 }: TimeframeSelectorProps) {
   return (
@@ -23,8 +23,8 @@ export default function TimeframeSelector({
         </label>
         <select
           id="interval"
-          value={interval}
-          onChange={(e) => onIntervalChange(e.target.value as TimeInterval)}
+          value={selected}
+          onChange={(e) => onChange(e.target.value as TimeInterval)}
           className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
         >
           {timeIntervalOptions.map((option) => (
