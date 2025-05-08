@@ -1,6 +1,11 @@
 import { NextResponse } from 'next/server';
 
+export const runtime = 'edge';
+
 const CORS_PROXY = 'https://api.allorigins.win/raw?url=';
+
+// Add this line to prevent static generation
+export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
