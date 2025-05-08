@@ -2,42 +2,43 @@
 
 import { useState, useEffect } from 'react'
 import { getHistoricalData } from '@/lib/yahooFinance'
-import { formatIDR } from '@/lib/utils'
+import { TimeInterval, TimeRange } from '@/types/timeframe'
+import TimeframeSelector from './TimeframeSelector'
 
 interface SupportResistanceProps {
   symbol: string
 }
 
 export default function SupportResistance({ symbol }: SupportResistanceProps) {
-  const [supportLevels, setSupportLevels] = useState<number[]>([])
-  const [resistanceLevels, setResistanceLevels] = useState<number[]>([])
-  const [error, setError] = useState<string | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
+  const [interval, setInterval] = useState<TimeInterval>('1d')
+  const [range, setRange] = useState<TimeRange>('3mo')
+  const [loading, setLoading] = useState(true)
+  const [data, setData] = useState<any[]>([])
+  const [levels, setLevels] = useState<{ support: number[]; resistance: number[] }>({
+    support: [],
+    resistance: []
+  })
 
-  const calculateLevels = async () => {
-    setIsLoading(true)
-    setError(null)
-    try {
-      // Get historical data
-      const data = await getHistoricalData(symbol, '1d', '3mo')
-      
-      if (!data || data.length === 0) {
-        throw new Error('No historical data available')
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true)
+      try {
+        const historicalData = await getHistoricalData(symbol, interval, range)
+        setData(historicalData)
+        
+        // Calculate support and resistance levels
+        const levels = calculateLevels(historicalData)
+        setLevels(levels)
+      } catch (error) {
+        console.error('Error fetching data:', error)
       }
-
-      // Calculate support and resistance levels
-      const { support, resistance } = findSupportResistanceLevels(data)
-      setSupportLevels(support)
-      setResistanceLevels(resistance)
-    } catch (err) {
-      console.error('Error calculating support/resistance levels:', err)
-      setError(err instanceof Error ? err.message : 'Failed to calculate support/resistance levels')
-    } finally {
-      setIsLoading(false)
+      setLoading(false)
     }
-  }
 
-  const findSupportResistanceLevels = (data: any[]) => {
+    fetchData()
+  }, [symbol, interval, range])
+
+  const calculateLevels = (data: any[]) => {
     const prices = data.map(d => d.close)
     const levels = new Set<number>()
     
@@ -71,65 +72,47 @@ export default function SupportResistance({ symbol }: SupportResistanceProps) {
     }
   }
 
-  useEffect(() => {
-    if (symbol) {
-      calculateLevels()
-    }
-  }, [symbol])
-
   return (
-    <div className="bg-primary rounded-lg p-4">
-      <h2 className="text-xl font-bold mb-4">Support & Resistance</h2>
-      
-      {error && (
-        <div className="mb-4 p-4 bg-red-500/10 border border-red-500/20 rounded-md text-red-500">
-          {error}
+    <div className="p-4 bg-white rounded-lg shadow">
+      <div className="mb-4">
+        <h2 className="text-xl font-semibold mb-2">Support & Resistance Levels</h2>
+        <TimeframeSelector
+          interval={interval}
+          range={range}
+          onIntervalChange={setInterval}
+          onRangeChange={setRange}
+        />
+      </div>
+
+      {loading ? (
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <div>
+            <h3 className="font-medium mb-2">Support Levels</h3>
+            <div className="space-y-1">
+              {levels.support.map((level, index) => (
+                <div key={index} className="text-green-600">
+                  ${level.toFixed(2)}
+                </div>
+              ))}
+            </div>
+          </div>
+          
+          <div>
+            <h3 className="font-medium mb-2">Resistance Levels</h3>
+            <div className="space-y-1">
+              {levels.resistance.map((level, index) => (
+                <div key={index} className="text-red-600">
+                  ${level.toFixed(2)}
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       )}
-
-      <div className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-300">Support Levels</label>
-          <div className="mt-1 space-y-1">
-            {isLoading ? (
-              <div className="text-gray-400">Calculating...</div>
-            ) : supportLevels.length > 0 ? (
-              supportLevels.map((level, index) => (
-                <div key={index} className="text-lg font-semibold text-green-500">
-                  {formatIDR(level)}
-                </div>
-              ))
-            ) : (
-              <div className="text-gray-400">No support levels found</div>
-            )}
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-300">Resistance Levels</label>
-          <div className="mt-1 space-y-1">
-            {isLoading ? (
-              <div className="text-gray-400">Calculating...</div>
-            ) : resistanceLevels.length > 0 ? (
-              resistanceLevels.map((level, index) => (
-                <div key={index} className="text-lg font-semibold text-red-500">
-                  {formatIDR(level)}
-                </div>
-              ))
-            ) : (
-              <div className="text-gray-400">No resistance levels found</div>
-            )}
-          </div>
-        </div>
-
-        <button
-          onClick={calculateLevels}
-          disabled={isLoading}
-          className="w-full px-4 py-2 bg-accent text-white rounded hover:bg-accent-hover disabled:opacity-50"
-        >
-          {isLoading ? 'Calculating...' : 'Recalculate'}
-        </button>
-      </div>
     </div>
   )
 } 

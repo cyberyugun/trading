@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react'
 import { getQuote, getHistoricalData } from '@/lib/yahooFinance'
 import { formatIDR } from '@/lib/utils'
+import { TimeInterval, TimeRange } from '@/types/timeframe'
+import TimeframeSelector from './TimeframeSelector'
 
 interface RiskManagementProps {
   symbol: string
@@ -14,6 +16,10 @@ export default function RiskManagement({ symbol }: RiskManagementProps) {
   const [stopLoss, setStopLoss] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [interval, setInterval] = useState<TimeInterval>('1d')
+  const [range, setRange] = useState<TimeRange>('1mo')
+  const [loading, setLoading] = useState(true)
+  const [data, setData] = useState<any[]>([])
 
   const calculateLevels = async () => {
     setIsLoading(true)
@@ -24,7 +30,7 @@ export default function RiskManagement({ symbol }: RiskManagementProps) {
       const currentPrice = quote.regularMarketPrice
 
       // Get historical data for volatility calculation
-      const historicalData = await getHistoricalData(symbol, '1d', '1mo')
+      const historicalData = await getHistoricalData(symbol, interval, range)
       
       if (!historicalData || historicalData.length === 0) {
         throw new Error('No historical data available')
@@ -68,51 +74,80 @@ export default function RiskManagement({ symbol }: RiskManagementProps) {
   }
 
   useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true)
+      try {
+        const historicalData = await getHistoricalData(symbol, interval, range)
+        setData(historicalData)
+      } catch (error) {
+        console.error('Error fetching data:', error)
+      }
+      setLoading(false)
+    }
+
+    fetchData()
+  }, [symbol, interval, range])
+
+  useEffect(() => {
     if (symbol) {
       calculateLevels()
     }
   }, [symbol])
 
   return (
-    <div className="bg-primary rounded-lg p-4">
-      <h2 className="text-xl font-bold mb-4">Risk Management</h2>
-      
-      {error && (
-        <div className="mb-4 p-4 bg-red-500/10 border border-red-500/20 rounded-md text-red-500">
-          {error}
+    <div className="p-4 bg-white rounded-lg shadow">
+      <div className="mb-4">
+        <h2 className="text-xl font-semibold mb-2">Risk Management Analysis</h2>
+        <TimeframeSelector
+          interval={interval}
+          range={range}
+          onIntervalChange={setInterval}
+          onRangeChange={setRange}
+        />
+      </div>
+
+      {loading ? (
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {error && (
+            <div className="mb-4 p-4 bg-red-500/10 border border-red-500/20 rounded-md text-red-500">
+              {error}
+            </div>
+          )}
+
+          <div>
+            <label className="block text-sm font-medium text-gray-300">Entry Price</label>
+            <div className="mt-1 text-lg font-semibold">
+              {isLoading ? 'Calculating...' : entry ? formatIDR(entry) : '-'}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-300">Take Profit</label>
+            <div className="mt-1 text-lg font-semibold text-green-500">
+              {isLoading ? 'Calculating...' : takeProfit ? formatIDR(takeProfit) : '-'}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-300">Stop Loss</label>
+            <div className="mt-1 text-lg font-semibold text-red-500">
+              {isLoading ? 'Calculating...' : stopLoss ? formatIDR(stopLoss) : '-'}
+            </div>
+          </div>
+
+          <button
+            onClick={calculateLevels}
+            disabled={isLoading}
+            className="w-full px-4 py-2 bg-accent text-white rounded hover:bg-accent-hover disabled:opacity-50"
+          >
+            {isLoading ? 'Calculating...' : 'Recalculate'}
+          </button>
         </div>
       )}
-
-      <div className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-300">Entry Price</label>
-          <div className="mt-1 text-lg font-semibold">
-            {isLoading ? 'Calculating...' : entry ? formatIDR(entry) : '-'}
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-300">Take Profit</label>
-          <div className="mt-1 text-lg font-semibold text-green-500">
-            {isLoading ? 'Calculating...' : takeProfit ? formatIDR(takeProfit) : '-'}
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-300">Stop Loss</label>
-          <div className="mt-1 text-lg font-semibold text-red-500">
-            {isLoading ? 'Calculating...' : stopLoss ? formatIDR(stopLoss) : '-'}
-          </div>
-        </div>
-
-        <button
-          onClick={calculateLevels}
-          disabled={isLoading}
-          className="w-full px-4 py-2 bg-accent text-white rounded hover:bg-accent-hover disabled:opacity-50"
-        >
-          {isLoading ? 'Calculating...' : 'Recalculate'}
-        </button>
-      </div>
     </div>
   )
 } 
