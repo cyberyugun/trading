@@ -30,7 +30,7 @@ export async function getQuote(symbol: string): Promise<StockQuote> {
   try {
     console.log('Fetching quote for symbol:', symbol)
     const url = `${CORS_PROXY}${encodeURIComponent(
-      `https://query1.finance.yahoo.com/v8/finance/quote?symbols=${symbol}`
+      `https://query2.finance.yahoo.com/v8/finance/quote?symbols=${symbol}`
     )}`
     console.log('Request URL:', url)
 
@@ -82,7 +82,7 @@ export async function getHistoricalData(
   try {
     console.log('Fetching historical data for symbol:', symbol, 'interval:', interval, 'range:', range)
     const url = `${CORS_PROXY}${encodeURIComponent(
-      `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=${interval}&range=${range}`
+      `https://query2.finance.yahoo.com/v8/finance/chart/${symbol}?interval=${interval}&range=${range}`
     )}`
     console.log('Request URL:', url)
 
@@ -131,7 +131,7 @@ export async function convertCurrency(from: string, to: string, amount: number):
   try {
     const symbol = `${from}${to}=X`
     const url = `${CORS_PROXY}${encodeURIComponent(
-      `https://query1.finance.yahoo.com/v8/finance/quote?symbols=${symbol}`
+      `https://query2.finance.yahoo.com/v8/finance/quote?symbols=${symbol}`
     )}`
 
     const response = await fetch(url)

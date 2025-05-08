@@ -1,60 +1,59 @@
 import { NextResponse } from 'next/server';
-import yfinance from 'yfinance';
+
+const CORS_PROXY = 'https://api.allorigins.win/raw?url=';
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const symbol = searchParams.get('symbol') || 'AAPL';
-  const period = searchParams.get('period') || '1d';
   const interval = searchParams.get('interval') || '1m';
-  const includeOptions = searchParams.get('includeOptions') === 'true';
+  const range = searchParams.get('period') || '1d';
 
   try {
-    // Create a Ticker object
-    const ticker = yfinance.Ticker(symbol);
-    
-    // Get historical data
-    const data = await ticker.history({ period, interval });
-    
-    // Get additional info
-    const info = await ticker.info;
-    
-    // Get options data if requested
-    let optionsData = null;
-    if (includeOptions && ticker.options) {
-      const expirationDates = await ticker.options;
-      if (expirationDates.length > 0) {
-        const options = await ticker.optionChain(expirationDates[0]);
-        optionsData = {
-          calls: options.calls,
-          puts: options.puts,
-          expirationDate: expirationDates[0]
-        };
-      }
+    // Fetch quote data
+    const quoteUrl = `${CORS_PROXY}${encodeURIComponent(
+      `https://query2.finance.yahoo.com/v8/finance/quote?symbols=${symbol}`
+    )}`;
+    const quoteResponse = await fetch(quoteUrl);
+    const quoteData = await quoteResponse.json();
+
+    // Fetch historical data
+    const chartUrl = `${CORS_PROXY}${encodeURIComponent(
+      `https://query2.finance.yahoo.com/v8/finance/chart/${symbol}?interval=${interval}&range=${range}`
+    )}`;
+    const chartResponse = await fetch(chartUrl);
+    const chartData = await chartResponse.json();
+
+    if (!quoteData.quoteResponse?.result?.[0] || !chartData.chart?.result?.[0]) {
+      throw new Error('Invalid response format');
     }
+
+    const quote = quoteData.quoteResponse.result[0];
+    const chart = chartData.chart.result[0];
+    const timestamps = chart.timestamp;
+    const quotes = chart.indicators.quote[0];
 
     // Format the response
     const response = {
       symbol,
-      data: data.map(row => ({
-        date: row.Date,
-        open: row.Open,
-        high: row.High,
-        low: row.Low,
-        close: row.Close,
-        volume: row.Volume
+      data: timestamps.map((timestamp: number, index: number) => ({
+        date: new Date(timestamp * 1000).toISOString(),
+        open: quotes.open[index] || 0,
+        high: quotes.high[index] || 0,
+        low: quotes.low[index] || 0,
+        close: quotes.close[index] || 0,
+        volume: quotes.volume[index] || 0
       })),
       info: {
-        companyName: info.longName,
-        currentPrice: info.currentPrice,
-        marketCap: info.marketCap,
-        peRatio: info.trailingPE,
-        dividendYield: info.dividendYield,
-        beta: info.beta,
-        eps: info.trailingEps,
-        sector: info.sector,
-        industry: info.industry
-      },
-      options: optionsData
+        companyName: quote.longName,
+        currentPrice: quote.regularMarketPrice,
+        marketCap: quote.marketCap,
+        peRatio: quote.trailingPE,
+        dividendYield: quote.dividendYield,
+        beta: quote.beta,
+        eps: quote.epsTrailingTwelveMonths,
+        sector: quote.sector,
+        industry: quote.industry
+      }
     };
 
     return NextResponse.json(response);

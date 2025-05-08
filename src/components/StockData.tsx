@@ -37,7 +37,6 @@ interface StockResponse {
   symbol: string;
   data: StockData[];
   info: StockInfo;
-  options: any;
 }
 
 export default function StockData() {
