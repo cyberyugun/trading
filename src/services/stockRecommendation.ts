@@ -621,8 +621,10 @@ export const getInvestmentRecommendations = async (): Promise<StockRecommendatio
       }
     }
 
-    // Sort by confidence
-    return recommendations.sort((a, b) => b.confidence - a.confidence);
+    // Sort by confidence and return only top 10
+    return recommendations
+      .sort((a, b) => b.confidence - a.confidence)
+      .slice(0, 10);
   } catch (error) {
     console.error('Error fetching investment recommendations:', error);
     throw error;
@@ -789,8 +791,10 @@ export const getSwingTradingRecommendations = async (): Promise<StockRecommendat
       }
     }
 
-    // Sort by confidence
-    return recommendations.sort((a, b) => b.confidence - a.confidence);
+    // Sort by confidence and return only top 10
+    return recommendations
+      .sort((a, b) => b.confidence - a.confidence)
+      .slice(0, 10);
   } catch (error) {
     console.error('Error fetching swing trading recommendations:', error);
     throw error;

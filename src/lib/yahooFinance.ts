@@ -1,6 +1,52 @@
 // Using a more reliable CORS proxy
 const CORS_PROXY = 'https://api.allorigins.win/raw?url='
 
+// Cache configuration
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes in milliseconds
+const cache: { [key: string]: { data: any; timestamp: number } } = {};
+
+// Retry configuration
+const MAX_RETRIES = 3;
+const RETRY_DELAY = 1000; // 1 second
+
+// Helper function for retrying API calls
+async function retryFetch<T>(
+  fetchFn: () => Promise<T>,
+  retries: number = MAX_RETRIES,
+  delay: number = RETRY_DELAY
+): Promise<T> {
+  try {
+    return await fetchFn();
+  } catch (error) {
+    if (retries === 0) {
+      throw error;
+    }
+    console.log(`Retrying... ${retries} attempts remaining`);
+    await new Promise(resolve => setTimeout(resolve, delay));
+    return retryFetch(fetchFn, retries - 1, delay * 2); // Exponential backoff
+  }
+}
+
+// Cache helper functions
+const getCacheKey = (endpoint: string, params: any) => {
+  return `${endpoint}-${JSON.stringify(params)}`;
+};
+
+const getFromCache = (key: string) => {
+  const cached = cache[key];
+  if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+    return cached.data;
+  }
+  return null;
+};
+
+const setCache = (key: string, data: any) => {
+  cache[key] = {
+    data,
+    timestamp: Date.now()
+  };
+};
+
 export interface StockData {
   timestamp: number
   open: number
@@ -28,30 +74,27 @@ export interface SearchResult {
 
 export async function getQuote(symbol: string): Promise<StockQuote> {
   try {
-    console.log('Fetching quote for symbol:', symbol)
+    const cacheKey = getCacheKey('quote', { symbol });
+    const cachedData = getFromCache(cacheKey);
+    if (cachedData) {
+      console.log('Using cached quote data for:', symbol);
+      return cachedData;
+    }
+
+    console.log('Fetching quote for symbol:', symbol);
     const url = `${CORS_PROXY}${encodeURIComponent(
       `https://query2.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1d`
-    )}`
-    console.log('Request URL:', url)
+    )}`;
 
-    const response = await fetch(url)
-    console.log('Response status:', response.status)
-    
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
-    
-    const text = await response.text()
-    console.log('Response text:', text.substring(0, 200) + '...') // Log first 200 chars
-    
-    let data
-    try {
-      data = JSON.parse(text)
-    } catch (e) {
-      console.error('Invalid JSON response:', text)
-      throw new Error('Invalid response from server')
-    }
-    
+    const data = await retryFetch(async () => {
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const text = await response.text();
+      return JSON.parse(text);
+    });
+
     if (!data.chart?.result?.[0]?.indicators?.quote?.[0]) {
       console.error('Invalid response format:', data)
       throw new Error('Invalid response format')
@@ -63,7 +106,7 @@ export async function getQuote(symbol: string): Promise<StockQuote> {
 
     console.log('Parsed quote:', quote)
     
-    return {
+    const result = {
       symbol: meta.symbol,
       regularMarketPrice: quote.close[lastIndex],
       regularMarketChange: quote.close[lastIndex] - quote.open[lastIndex],
@@ -71,9 +114,12 @@ export async function getQuote(symbol: string): Promise<StockQuote> {
       regularMarketVolume: quote.volume[lastIndex],
       regularMarketTime: meta.regularMarketTime
     }
+
+    setCache(cacheKey, result);
+    return result;
   } catch (error) {
-    console.error('Error fetching quote:', error)
-    throw new Error('Failed to fetch quote data. Please try again later.')
+    console.error('Error fetching quote:', error);
+    throw new Error('Failed to fetch quote data. Please try again later.');
   }
 }
 
@@ -83,30 +129,27 @@ export async function getHistoricalData(
   range: string = '1mo'
 ): Promise<StockData[]> {
   try {
-    console.log('Fetching historical data for symbol:', symbol, 'interval:', interval, 'range:', range)
+    const cacheKey = getCacheKey('historical', { symbol, interval, range });
+    const cachedData = getFromCache(cacheKey);
+    if (cachedData) {
+      console.log('Using cached historical data for:', symbol);
+      return cachedData;
+    }
+
+    console.log('Fetching historical data for symbol:', symbol, 'interval:', interval, 'range:', range);
     const url = `${CORS_PROXY}${encodeURIComponent(
       `https://query2.finance.yahoo.com/v8/finance/chart/${symbol}?interval=${interval}&range=${range}`
-    )}`
-    console.log('Request URL:', url)
+    )}`;
 
-    const response = await fetch(url)
-    console.log('Response status:', response.status)
-    
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
-    
-    const text = await response.text()
-    console.log('Response text:', text.substring(0, 200) + '...') // Log first 200 chars
-    
-    let data
-    try {
-      data = JSON.parse(text)
-    } catch (e) {
-      console.error('Invalid JSON response:', text)
-      throw new Error('Invalid response from server')
-    }
-    
+    const data = await retryFetch(async () => {
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const text = await response.text();
+      return JSON.parse(text);
+    });
+
     if (!data.chart?.result?.[0]?.timestamp || !data.chart?.result?.[0]?.indicators?.quote?.[0]) {
       console.error('Invalid response format:', data)
       throw new Error('Invalid response format')
@@ -116,7 +159,7 @@ export async function getHistoricalData(
     const quotes = data.chart.result[0].indicators.quote[0]
     console.log('Parsed data points:', timestamps.length)
 
-    return timestamps.map((timestamp: number, index: number) => ({
+    const result = timestamps.map((timestamp: number, index: number) => ({
       timestamp,
       open: quotes.open[index] || 0,
       high: quotes.high[index] || 0,
@@ -124,9 +167,12 @@ export async function getHistoricalData(
       close: quotes.close[index] || 0,
       volume: quotes.volume[index] || 0
     }))
+
+    setCache(cacheKey, result);
+    return result;
   } catch (error) {
-    console.error('Error fetching historical data:', error)
-    throw new Error('Failed to fetch historical data. Please try again later.')
+    console.error('Error fetching historical data:', error);
+    throw new Error('Failed to fetch historical data. Please try again later.');
   }
 }
 
