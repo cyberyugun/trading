@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { StockData } from '@/lib/api'
+import { FiInfo, FiDollarSign, FiTrendingUp, FiTrendingDown, FiAlertCircle } from 'react-icons/fi'
 import { formatIDR } from '@/lib/utils'
-import { FiInfo, FiAlertCircle } from 'react-icons/fi'
 
 interface RiskManagementProps {
   data: StockData[]
@@ -109,129 +109,174 @@ export default function RiskManagement({ data }: RiskManagementProps) {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-xl font-semibold">Risk Management</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-semibold">Risk Management</h2>
+        <div className="flex items-center gap-2 text-sm text-gray-400">
+          <FiInfo className="w-4 h-4" />
+          <span>Manage your trade risk</span>
+        </div>
+      </div>
 
-      <div className="space-y-4">
-        <div>
-          <h3 className="text-lg font-medium">Entry Prices</h3>
-          {entryPrices.map((entry, index) => (
-            <div key={index} className="flex gap-4 mt-2">
-              <input
-                type="number"
-                value={entry.price}
-                onChange={(e) => updateEntryPrice(index, 'price', parseFloat(e.target.value))}
-                className="flex-1 p-2 rounded bg-background border border-border"
-                placeholder="Price"
-              />
-              <input
-                type="number"
-                value={entry.quantity}
-                onChange={(e) => updateEntryPrice(index, 'quantity', parseFloat(e.target.value))}
-                className="flex-1 p-2 rounded bg-background border border-border"
-                placeholder="Quantity"
-              />
-              {index > 0 && (
-                <button
-                  onClick={() => removeEntryPrice(index)}
-                  className="p-2 text-red-500 hover:text-red-600"
-                >
-                  Remove
-                </button>
-              )}
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-400">Entry Prices</label>
+            <div className="space-y-3">
+              {entryPrices.map((entry, index) => (
+                <div key={index} className="flex gap-4">
+                  <div className="flex-1">
+                    <input
+                      type="number"
+                      value={entry.price}
+                      onChange={(e) => updateEntryPrice(index, 'price', parseFloat(e.target.value))}
+                      className="w-full p-2 rounded bg-background border border-border focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                      placeholder="Price"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <input
+                      type="number"
+                      value={entry.quantity}
+                      onChange={(e) => updateEntryPrice(index, 'quantity', parseFloat(e.target.value))}
+                      className="w-full p-2 rounded bg-background border border-border focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                      placeholder="Quantity"
+                    />
+                  </div>
+                  {index > 0 && (
+                    <button
+                      onClick={() => removeEntryPrice(index)}
+                      className="p-2 text-red-500 hover:text-red-600"
+                    >
+                      <FiAlertCircle className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              ))}
+              <button
+                onClick={addEntryPrice}
+                className="w-full p-2 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center justify-center gap-2"
+              >
+                <FiTrendingUp className="w-4 h-4" />
+                Add Entry Price
+              </button>
             </div>
-          ))}
-          <button
-            onClick={addEntryPrice}
-            className="mt-2 p-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-          >
-            Add Entry Price
-          </button>
-        </div>
+          </div>
 
-        <div>
-          <h3 className="text-lg font-medium">Take Profit Levels</h3>
-          {takeProfits.map((tp, index) => (
-            <div key={index} className="flex gap-4 mt-2">
-              <input
-                type="number"
-                value={tp.price}
-                onChange={(e) => updateTakeProfit(index, 'price', parseFloat(e.target.value))}
-                className="flex-1 p-2 rounded bg-background border border-border"
-                placeholder="Price"
-              />
-              <input
-                type="number"
-                value={tp.quantity}
-                onChange={(e) => updateTakeProfit(index, 'quantity', parseFloat(e.target.value))}
-                className="flex-1 p-2 rounded bg-background border border-border"
-                placeholder="Quantity"
-              />
-              {index > 0 && (
-                <button
-                  onClick={() => removeTakeProfit(index)}
-                  className="p-2 text-red-500 hover:text-red-600"
-                >
-                  Remove
-                </button>
-              )}
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-400">Take Profit Levels</label>
+            <div className="space-y-3">
+              {takeProfits.map((tp, index) => (
+                <div key={index} className="flex gap-4">
+                  <div className="flex-1">
+                    <input
+                      type="number"
+                      value={tp.price}
+                      onChange={(e) => updateTakeProfit(index, 'price', parseFloat(e.target.value))}
+                      className="w-full p-2 rounded bg-background border border-border focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                      placeholder="Price"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <input
+                      type="number"
+                      value={tp.quantity}
+                      onChange={(e) => updateTakeProfit(index, 'quantity', parseFloat(e.target.value))}
+                      className="w-full p-2 rounded bg-background border border-border focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                      placeholder="Quantity"
+                    />
+                  </div>
+                  {index > 0 && (
+                    <button
+                      onClick={() => removeTakeProfit(index)}
+                      className="p-2 text-red-500 hover:text-red-600"
+                    >
+                      <FiAlertCircle className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              ))}
+              <button
+                onClick={addTakeProfit}
+                className="w-full p-2 bg-green-600 text-white rounded hover:bg-green-700 flex items-center justify-center gap-2"
+              >
+                <FiTrendingUp className="w-4 h-4" />
+                Add Take Profit
+              </button>
             </div>
-          ))}
-          <button
-            onClick={addTakeProfit}
-            className="mt-2 p-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-          >
-            Add Take Profit
-          </button>
+          </div>
         </div>
 
-        <div>
-          <h3 className="text-lg font-medium">Stop Loss</h3>
-          <input
-            type="number"
-            value={stopLoss}
-            onChange={(e) => setStopLoss(parseFloat(e.target.value))}
-            className="w-full p-2 rounded bg-background border border-border"
-            placeholder="Stop Loss Price"
-          />
-        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-400">Stop Loss</label>
+            <input
+              type="number"
+              value={stopLoss}
+              onChange={(e) => setStopLoss(parseFloat(e.target.value))}
+              className="w-full p-2 rounded bg-background border border-border focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+              placeholder="Stop Loss Price"
+            />
+          </div>
 
-        <div>
-          <h3 className="text-lg font-medium">Account Size</h3>
-          <input
-            type="number"
-            value={accountSize}
-            onChange={(e) => setAccountSize(parseFloat(e.target.value))}
-            className="w-full p-2 rounded bg-background border border-border"
-            placeholder="Account Size"
-          />
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-400">Account Size</label>
+            <div className="relative">
+              <FiDollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              <input
+                type="number"
+                value={accountSize}
+                onChange={(e) => setAccountSize(parseFloat(e.target.value))}
+                className="w-full pl-10 p-2 rounded bg-background border border-border focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                placeholder="Account Size"
+              />
+            </div>
+          </div>
         </div>
 
         <div className="flex gap-4">
           <button
             onClick={calculatePositionSize}
-            className="flex-1 p-2 bg-green-600 text-white rounded hover:bg-green-700"
+            className="flex-1 p-2 bg-green-600 text-white rounded hover:bg-green-700 flex items-center justify-center gap-2"
           >
+            <FiTrendingUp className="w-4 h-4" />
             Calculate Position Size
           </button>
           <button
             onClick={calculateRiskReward}
-            className="flex-1 p-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            className="flex-1 p-2 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center justify-center gap-2"
           >
+            <FiTrendingDown className="w-4 h-4" />
             Calculate Risk/Reward
           </button>
         </div>
 
         {positionSize > 0 && (
-          <div className="p-4 bg-green-500/10 rounded">
-            <h3 className="text-lg font-medium text-green-500">Position Size</h3>
+          <div className="p-4 bg-green-500/10 rounded-lg border border-green-500/20">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-lg font-medium text-green-500">Position Size</h3>
+              <span className="text-sm text-green-500">2% risk per trade</span>
+            </div>
             <p className="text-2xl font-bold">{positionSize.toFixed(2)} shares</p>
+            <div className="mt-2 flex items-center gap-2 text-sm text-gray-400">
+              <FiInfo className="w-4 h-4" />
+              <span>Based on your risk tolerance</span>
+            </div>
           </div>
         )}
 
         {riskRewardRatio > 0 && (
-          <div className="p-4 bg-blue-500/10 rounded">
-            <h3 className="text-lg font-medium text-blue-500">Risk/Reward Ratio</h3>
+          <div className="p-4 bg-blue-500/10 rounded-lg border border-blue-500/20">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-lg font-medium text-blue-500">Risk/Reward Ratio</h3>
+              <span className="text-sm text-blue-500">
+                {riskRewardRatio > 2 ? 'Good' : riskRewardRatio > 1 ? 'Acceptable' : 'Poor'}
+              </span>
+            </div>
             <p className="text-2xl font-bold">{riskRewardRatio.toFixed(2)}</p>
+            <div className="mt-2 flex items-center gap-2 text-sm text-gray-400">
+              <FiInfo className="w-4 h-4" />
+              <span>Target: 2.0 or higher</span>
+            </div>
           </div>
         )}
       </div>
