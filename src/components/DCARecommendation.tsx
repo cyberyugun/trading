@@ -60,10 +60,18 @@ export default function DCARecommendation({ data }: DCARecommendationProps) {
     const baseAmount = totalInvestment / numberOfLevels
 
     for (let i = 0; i < numberOfLevels; i++) {
-      const level = latestPrice - (currentATR * (i + 1))
-      const amount = baseAmount * (1 + (i * 0.2)) // Increase amount by 20% for each level
-      const total = amount * (i + 1)
-      const avg = total / (i + 1)
+      // Calculate price level using ATR with a more conservative approach
+      const level = latestPrice - (currentATR * (i + 1) * 0.5) // Use 0.5 multiplier for more conservative levels
+      
+      // Calculate investment amount with decreasing allocation for lower prices
+      const amount = baseAmount * (1 + (i * 0.1)) // More conservative 10% increase per level
+      
+      // Calculate shares that would be purchased at this level
+      const shares = amount / level
+      
+      // Calculate total investment and average price based on actual shares
+      const total = amount
+      const avg = level // The entry price at this level
 
       levels.push({
         level,
