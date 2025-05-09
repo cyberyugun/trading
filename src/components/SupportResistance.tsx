@@ -2,127 +2,166 @@
 
 import { useState, useEffect } from 'react'
 import { StockData } from '@/lib/api'
-import { FiInfo, FiRefreshCw } from 'react-icons/fi'
+import { FiTrendingUp, FiTrendingDown } from 'react-icons/fi'
+import { formatIDR } from '@/lib/utils'
 
 interface SupportResistanceProps {
   data: StockData[]
 }
 
+interface PriceLevel {
+  price: number
+  strength: number
+  type: 'support' | 'resistance'
+}
+
 export default function SupportResistance({ data }: SupportResistanceProps) {
-  const [supportLevels, setSupportLevels] = useState<number[]>([])
-  const [resistanceLevels, setResistanceLevels] = useState<number[]>([])
-  const [loading, setLoading] = useState(true)
+  const [supportLevels, setSupportLevels] = useState<PriceLevel[]>([])
+  const [resistanceLevels, setResistanceLevels] = useState<PriceLevel[]>([])
 
   useEffect(() => {
     if (!data || data.length === 0) return
 
-    // Simple support and resistance calculation based on local minima and maxima
-    const prices = data.map(d => d.close)
-    const windowSize = Math.floor(prices.length * 0.1) // 10% of data points
+    // Find local minima and maxima
+    const findLocalExtrema = (data: StockData[]) => {
+      const minima: number[] = []
+      const maxima: number[] = []
+      const windowSize = 5 // Look at 5 candles before and after
 
-    const findLocalExtrema = (prices: number[], windowSize: number, isMin: boolean) => {
-      const extrema: number[] = []
-      for (let i = windowSize; i < prices.length - windowSize; i++) {
-        const window = prices.slice(i - windowSize, i + windowSize + 1)
-        const current = prices[i]
-        if (isMin ? Math.min(...window) === current : Math.max(...window) === current) {
-          extrema.push(current)
+      for (let i = windowSize; i < data.length - windowSize; i++) {
+        const current = data[i]
+        const before = data.slice(i - windowSize, i)
+        const after = data.slice(i + 1, i + windowSize + 1)
+
+        // Check for local minimum
+        const isMin = before.every(candle => candle.low >= current.low) &&
+                     after.every(candle => candle.low >= current.low)
+        if (isMin) {
+          minima.push(current.low)
+        }
+
+        // Check for local maximum
+        const isMax = before.every(candle => candle.high <= current.high) &&
+                     after.every(candle => candle.high <= current.high)
+        if (isMax) {
+          maxima.push(current.high)
         }
       }
-      return extrema
-    }
 
-    const supports = findLocalExtrema(prices, windowSize, true)
-    const resistances = findLocalExtrema(prices, windowSize, false)
+      return { minima, maxima }
+    }
 
     // Group nearby levels
     const groupLevels = (levels: number[], threshold: number) => {
       const groups: number[][] = []
+      let currentGroup: number[] = []
+
       levels.sort((a, b) => a - b)
 
-      let currentGroup: number[] = []
       for (const level of levels) {
-        if (currentGroup.length === 0 || Math.abs(level - currentGroup[0]) <= threshold) {
+        if (currentGroup.length === 0) {
           currentGroup.push(level)
         } else {
-          groups.push(currentGroup)
-          currentGroup = [level]
+          const avg = currentGroup.reduce((a, b) => a + b, 0) / currentGroup.length
+          if (Math.abs(level - avg) <= threshold) {
+            currentGroup.push(level)
+          } else {
+            groups.push(currentGroup)
+            currentGroup = [level]
+          }
         }
       }
+
       if (currentGroup.length > 0) {
         groups.push(currentGroup)
       }
 
-      return groups.map(group => group.reduce((a, b) => a + b, 0) / group.length)
+      return groups.map(group => ({
+        price: group.reduce((a, b) => a + b, 0) / group.length,
+        strength: group.length
+      }))
     }
 
-    const priceRange = Math.max(...prices) - Math.min(...prices)
+    const { minima, maxima } = findLocalExtrema(data)
+    const priceRange = Math.max(...data.map(d => d.high)) - Math.min(...data.map(d => d.low))
     const threshold = priceRange * 0.02 // 2% of price range
 
-    setSupportLevels(groupLevels(supports, threshold))
-    setResistanceLevels(groupLevels(resistances, threshold))
+    const supportGroups = groupLevels(minima, threshold)
+    const resistanceGroups = groupLevels(maxima, threshold)
+
+    // Sort by strength and take top 3
+    const sortedSupport = supportGroups
+      .sort((a, b) => b.strength - a.strength)
+      .slice(0, 3)
+      .map(level => ({ ...level, type: 'support' as const }))
+
+    const sortedResistance = resistanceGroups
+      .sort((a, b) => b.strength - a.strength)
+      .slice(0, 3)
+      .map(level => ({ ...level, type: 'resistance' as const }))
+
+    setSupportLevels(sortedSupport)
+    setResistanceLevels(sortedResistance)
   }, [data])
 
-  const refreshData = () => {
-    setLoading(true)
-    // Implementation of refreshData function
-    setLoading(false)
-  }
-
   return (
-    <div className="p-6 bg-white rounded-lg shadow-lg">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-800">Support & Resistance</h2>
-          <p className="text-sm text-gray-500 mt-1">Key price levels for the stock</p>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-semibold">Support & Resistance</h2>
+        <div className="flex items-center gap-2 text-sm text-gray-400">
+          <span>Top 3 levels</span>
         </div>
-        <button
-          onClick={refreshData}
-          disabled={loading}
-          className="p-2 text-gray-600 hover:text-accent transition-colors"
-          title="Refresh data"
-        >
-          <FiRefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
-        </button>
       </div>
 
-      {loading ? (
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent"></div>
-        </div>
-      ) : (
-        <div className="space-y-6">
-          <div className="space-y-4">
-            <h2 className="text-xl font-semibold">Support & Resistance Levels</h2>
-            
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="space-y-4">
+          <div className="p-4 bg-green-500/10 rounded-lg border border-green-500/20">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-medium text-green-500">Support Levels</h3>
+              <FiTrendingUp className="w-5 h-5 text-green-500" />
+            </div>
             <div className="space-y-4">
-              <div>
-                <h3 className="text-lg font-medium text-green-500">Support Levels</h3>
-                <div className="mt-2 space-y-2">
-                  {supportLevels.map((level, index) => (
-                    <div key={index} className="flex items-center justify-between p-2 bg-green-500/10 rounded">
-                      <span>Level {index + 1}</span>
-                      <span className="font-medium">{level.toFixed(2)}</span>
+              {supportLevels.map((level, index) => (
+                <div key={index} className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-gray-400">S{index + 1}</span>
+                    <div className="flex items-center gap-1">
+                      {[...Array(level.strength)].map((_, i) => (
+                        <div key={i} className="w-1 h-4 bg-green-500/50 rounded-full" />
+                      ))}
                     </div>
-                  ))}
+                  </div>
+                  <span className="font-medium">{formatIDR(level.price)}</span>
                 </div>
-              </div>
-
-              <div>
-                <h3 className="text-lg font-medium text-red-500">Resistance Levels</h3>
-                <div className="mt-2 space-y-2">
-                  {resistanceLevels.map((level, index) => (
-                    <div key={index} className="flex items-center justify-between p-2 bg-red-500/10 rounded">
-                      <span>Level {index + 1}</span>
-                      <span className="font-medium">{level.toFixed(2)}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              ))}
             </div>
           </div>
         </div>
-      )}
+
+        <div className="space-y-4">
+          <div className="p-4 bg-red-500/10 rounded-lg border border-red-500/20">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-medium text-red-500">Resistance Levels</h3>
+              <FiTrendingDown className="w-5 h-5 text-red-500" />
+            </div>
+            <div className="space-y-4">
+              {resistanceLevels.map((level, index) => (
+                <div key={index} className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-gray-400">R{index + 1}</span>
+                    <div className="flex items-center gap-1">
+                      {[...Array(level.strength)].map((_, i) => (
+                        <div key={i} className="w-1 h-4 bg-red-500/50 rounded-full" />
+                      ))}
+                    </div>
+                  </div>
+                  <span className="font-medium">{formatIDR(level.price)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   )
 } 
