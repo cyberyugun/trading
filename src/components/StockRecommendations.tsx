@@ -1,13 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { getInvestmentRecommendations, getSwingTradingRecommendations } from '@/services/stockRecommendation';
+import { getInvestmentRecommendations, getSwingTradingRecommendations } from '@/services/geminiAI';
 import { motion, AnimatePresence } from 'framer-motion';
 
-interface StockRecommendation {
+interface StockAnalysis {
   symbol: string;
   name: string;
   price: number;
   recommendation: string;
   confidence: number;
+  analysis: {
+    technical: string;
+    fundamental: string;
+    sentiment: string;
+    risk: string;
+  };
   metrics: {
     peRatio?: number;
     dividendYield?: number;
@@ -94,7 +100,7 @@ class ErrorBoundary extends React.Component<
 
 const StockRecommendations: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'investment' | 'swing'>('investment');
-  const [recommendations, setRecommendations] = useState<StockRecommendation[]>([]);
+  const [recommendations, setRecommendations] = useState<StockAnalysis[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
@@ -108,7 +114,7 @@ const StockRecommendations: React.FC = () => {
           ? await getInvestmentRecommendations()
           : await getSwingTradingRecommendations();
         setRecommendations(data);
-        setRetryCount(0); // Reset retry count on success
+        setRetryCount(0);
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Failed to fetch recommendations';
         setError(errorMessage);
@@ -119,7 +125,7 @@ const StockRecommendations: React.FC = () => {
     };
 
     fetchRecommendations();
-  }, [activeTab, retryCount]); // Add retryCount to dependencies
+  }, [activeTab, retryCount]);
 
   const handleRetry = () => {
     setRetryCount(prev => prev + 1);
@@ -133,107 +139,102 @@ const StockRecommendations: React.FC = () => {
   };
 
   const getRecommendationColor = (recommendation: string) => {
-    switch (recommendation) {
-      case 'Strong Buy':
-      case 'Swing Buy':
-        return 'bg-green-100 text-green-800 border-green-200';
-      case 'Buy':
-        return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'Neutral':
-        return 'bg-gray-100 text-gray-800 border-gray-200';
-      case 'Avoid':
-      case 'Swing Sell':
-        return 'bg-red-100 text-red-800 border-red-200';
+    switch (recommendation.toLowerCase()) {
+      case 'strong buy':
+        return 'text-green-600';
+      case 'buy':
+        return 'text-green-500';
+      case 'hold':
+        return 'text-yellow-500';
+      case 'sell':
+        return 'text-red-500';
+      case 'strong sell':
+        return 'text-red-600';
       default:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
+        return 'text-gray-500';
     }
   };
 
-  const getMetricColor = (value: number, type: 'positive' | 'negative' | 'neutral') => {
-    if (type === 'positive') return value > 0 ? 'text-green-600' : 'text-red-600';
-    if (type === 'negative') return value < 0 ? 'text-green-600' : 'text-red-600';
-    return 'text-gray-600';
-  };
-
-  const renderMetrics = (metrics: StockRecommendation['metrics'], type: 'investment' | 'swing') => {
+  const renderMetrics = (metrics: StockAnalysis['metrics'], type: 'investment' | 'swing') => {
     if (type === 'investment') {
       return (
-        <div className="grid grid-cols-2 gap-2 text-sm">
-          <div className="flex justify-between">
-            <span className="text-gray-500">P/E Ratio:</span>
-            <span className={getMetricColor(metrics.peRatio || 0, 'positive')}>
-              {metrics.peRatio?.toFixed(2) || 'N/A'}
-            </span>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <p className="text-sm text-gray-500">P/E Ratio</p>
+            <p className="font-medium">{metrics.peRatio?.toFixed(2)}</p>
           </div>
-          <div className="flex justify-between">
-            <span className="text-gray-500">Dividend Yield:</span>
-            <span className={getMetricColor(metrics.dividendYield || 0, 'positive')}>
-              {(metrics.dividendYield ? (metrics.dividendYield * 100).toFixed(2) + '%' : 'N/A')}
-            </span>
+          <div>
+            <p className="text-sm text-gray-500">Dividend Yield</p>
+            <p className="font-medium">{metrics.dividendYield?.toFixed(2)}%</p>
           </div>
-          <div className="flex justify-between">
-            <span className="text-gray-500">Market Cap:</span>
-            <span className="text-gray-700">${formatMarketCap(metrics.marketCap || 0)}</span>
+          <div>
+            <p className="text-sm text-gray-500">Market Cap</p>
+            <p className="font-medium">${formatMarketCap(metrics.marketCap || 0)}</p>
           </div>
-          <div className="flex justify-between">
-            <span className="text-gray-500">Beta:</span>
-            <span className={getMetricColor(metrics.beta || 0, 'neutral')}>
-              {metrics.beta?.toFixed(2) || 'N/A'}
-            </span>
+          <div>
+            <p className="text-sm text-gray-500">Profit Margin</p>
+            <p className="font-medium">{metrics.profitMargin?.toFixed(2)}%</p>
           </div>
-          <div className="flex justify-between">
-            <span className="text-gray-500">Profit Margin:</span>
-            <span className={getMetricColor(metrics.profitMargin || 0, 'positive')}>
-              {(metrics.profitMargin ? (metrics.profitMargin * 100).toFixed(2) + '%' : 'N/A')}
-            </span>
+          <div>
+            <p className="text-sm text-gray-500">Debt to Equity</p>
+            <p className="font-medium">{metrics.debtToEquity?.toFixed(2)}</p>
           </div>
-          <div className="flex justify-between">
-            <span className="text-gray-500">Debt/Equity:</span>
-            <span className={getMetricColor(metrics.debtToEquity || 0, 'negative')}>
-              {metrics.debtToEquity?.toFixed(2) || 'N/A'}
-            </span>
+          <div>
+            <p className="text-sm text-gray-500">Current Ratio</p>
+            <p className="font-medium">{metrics.currentRatio?.toFixed(2)}</p>
           </div>
         </div>
       );
     }
 
     return (
-      <div className="grid grid-cols-2 gap-2 text-sm">
-        <div className="flex justify-between">
-          <span className="text-gray-500">RSI:</span>
-          <span className={getMetricColor(metrics.rsi || 0, 'neutral')}>
-            {metrics.rsi?.toFixed(2) || 'N/A'}
-          </span>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <p className="text-sm text-gray-500">RSI</p>
+          <p className="font-medium">{metrics.rsi?.toFixed(2)}</p>
         </div>
-        <div className="flex justify-between">
-          <span className="text-gray-500">MACD:</span>
-          <span className={getMetricColor(metrics.macd || 0, 'positive')}>
-            {metrics.macd?.toFixed(2) || 'N/A'}
-          </span>
+        <div>
+          <p className="text-sm text-gray-500">MACD</p>
+          <p className="font-medium">{metrics.macd?.toFixed(2)}</p>
         </div>
-        <div className="flex justify-between">
-          <span className="text-gray-500">Volume Change:</span>
-          <span className={getMetricColor(metrics.volumeChange || 0, 'positive')}>
-            {(metrics.volumeChange ? (metrics.volumeChange * 100).toFixed(2) + '%' : 'N/A')}
-          </span>
+        <div>
+          <p className="text-sm text-gray-500">Volume Change</p>
+          <p className="font-medium">{metrics.volumeChange?.toFixed(2)}%</p>
         </div>
-        <div className="flex justify-between">
-          <span className="text-gray-500">Volatility:</span>
-          <span className={getMetricColor(metrics.volatility || 0, 'negative')}>
-            {(metrics.volatility ? (metrics.volatility * 100).toFixed(2) + '%' : 'N/A')}
-          </span>
+        <div>
+          <p className="text-sm text-gray-500">Volatility</p>
+          <p className="font-medium">{metrics.volatility?.toFixed(2)}</p>
         </div>
-        <div className="flex justify-between">
-          <span className="text-gray-500">Momentum:</span>
-          <span className={getMetricColor(metrics.momentum || 0, 'positive')}>
-            {(metrics.momentum ? (metrics.momentum * 100).toFixed(2) + '%' : 'N/A')}
-          </span>
+        <div>
+          <p className="text-sm text-gray-500">Momentum</p>
+          <p className="font-medium">{metrics.momentum?.toFixed(2)}</p>
         </div>
-        <div className="flex justify-between">
-          <span className="text-gray-500">ADX:</span>
-          <span className={getMetricColor(metrics.adx || 0, 'positive')}>
-            {metrics.adx?.toFixed(2) || 'N/A'}
-          </span>
+        <div>
+          <p className="text-sm text-gray-500">ATR</p>
+          <p className="font-medium">{metrics.atr?.toFixed(2)}</p>
+        </div>
+      </div>
+    );
+  };
+
+  const renderAnalysis = (analysis: StockAnalysis['analysis']) => {
+    return (
+      <div className="mt-4 space-y-3">
+        <div>
+          <h4 className="text-sm font-medium text-gray-700">Technical Analysis</h4>
+          <p className="text-sm text-gray-600">{analysis.technical}</p>
+        </div>
+        <div>
+          <h4 className="text-sm font-medium text-gray-700">Fundamental Analysis</h4>
+          <p className="text-sm text-gray-600">{analysis.fundamental}</p>
+        </div>
+        <div>
+          <h4 className="text-sm font-medium text-gray-700">Market Sentiment</h4>
+          <p className="text-sm text-gray-600">{analysis.sentiment}</p>
+        </div>
+        <div>
+          <h4 className="text-sm font-medium text-gray-700">Risk Assessment</h4>
+          <p className="text-sm text-gray-600">{analysis.risk}</p>
         </div>
       </div>
     );
@@ -243,7 +244,7 @@ const StockRecommendations: React.FC = () => {
     <ErrorBoundary>
       <div className="bg-white rounded-lg shadow-lg p-6">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold text-gray-900">Stock Recommendations</h2>
+          <h2 className="text-2xl font-bold text-gray-900">AI Stock Recommendations</h2>
           <div className="flex space-x-2 bg-gray-100 p-1 rounded-lg">
             <button
               onClick={() => setActiveTab('investment')}
@@ -300,40 +301,26 @@ const StockRecommendations: React.FC = () => {
                 recommendations.map((stock) => (
                   <motion.div
                     key={stock.symbol}
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 0.2 }}
-                    className="border rounded-lg p-4 hover:shadow-md transition-shadow"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="bg-gray-50 rounded-lg p-4"
                   >
-                    <div className="flex justify-between items-start mb-3">
+                    <div className="flex justify-between items-start mb-4">
                       <div>
                         <h3 className="text-lg font-semibold text-gray-900">{stock.symbol}</h3>
                         <p className="text-sm text-gray-500">{stock.name}</p>
                       </div>
                       <div className="text-right">
                         <p className="text-lg font-semibold text-gray-900">${stock.price.toFixed(2)}</p>
-                        <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${getRecommendationColor(stock.recommendation)}`}>
+                        <p className={`text-sm font-medium ${getRecommendationColor(stock.recommendation)}`}>
                           {stock.recommendation}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="mb-3">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-sm text-gray-500">Confidence</span>
-                        <span className="text-sm font-medium text-gray-700">
-                          {(stock.confidence * 100).toFixed(1)}%
-                        </span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div
-                          className="bg-blue-500 h-2 rounded-full transition-all duration-300"
-                          style={{ width: `${stock.confidence * 100}%` }}
-                        ></div>
+                        </p>
+                        <p className="text-xs text-gray-500">Confidence: {stock.confidence}%</p>
                       </div>
                     </div>
 
                     {renderMetrics(stock.metrics, activeTab)}
+                    {renderAnalysis(stock.analysis)}
                   </motion.div>
                 ))
               )}
