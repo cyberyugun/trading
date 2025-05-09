@@ -26,15 +26,20 @@ body {
     rgb(var(--background-start-rgb));
 }
 
-/* Add styles for input and select tags */
-input, select {
+/* Add styles for input and select tags only in Technical Indicators and DCA Recommendation */
+.technical-indicators input,
+.technical-indicators select,
+.dca-recommendation input,
+.dca-recommendation select {
   color: black !important;
 }
 
-input::placeholder {
+.technical-indicators input::placeholder,
+.dca-recommendation input::placeholder {
   color: #666 !important;
 }
 
-select option {
+.technical-indicators select option,
+.dca-recommendation select option {
   color: black;
 } 

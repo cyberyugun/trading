@@ -77,7 +77,7 @@ export default function DCARecommendation({ data }: DCARecommendationProps) {
   }, [data, totalInvestment, numberOfLevels])
 
   return (
-    <div className="space-y-6">
+    <div className="dca-recommendation space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold">DCA Recommendation</h2>
         <div className="flex items-center gap-2 text-sm text-gray-400">
