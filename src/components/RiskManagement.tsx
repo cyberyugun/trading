@@ -1,250 +1,240 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { getQuote, getHistoricalData } from '@/lib/yahooFinance'
+import { StockData } from '@/lib/api'
 import { formatIDR } from '@/lib/utils'
-import { TimeInterval, TimeRange } from '@/types/timeframe'
-import TimeframeSelector from './TimeframeSelector'
-import { FiInfo, FiRefreshCw, FiAlertCircle } from 'react-icons/fi'
+import { FiInfo, FiAlertCircle } from 'react-icons/fi'
 
 interface RiskManagementProps {
-  symbol: string
+  data: StockData[]
 }
 
 interface PriceLevel {
   price: number
-  percentage: number
+  quantity: number
 }
 
-export default function RiskManagement({ symbol }: RiskManagementProps) {
-  const [entries, setEntries] = useState<PriceLevel[]>([])
-  const [takeProfits, setTakeProfits] = useState<PriceLevel[]>([])
-  const [stopLosses, setStopLosses] = useState<PriceLevel[]>([])
-  const [error, setError] = useState<string | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
-  const [interval, setInterval] = useState<TimeInterval>('1d')
-  const [range, setRange] = useState<TimeRange>('1mo')
-  const [loading, setLoading] = useState(true)
-  const [data, setData] = useState<any[]>([])
-  const [riskRewardRatio, setRiskRewardRatio] = useState<number | null>(null)
-
-  const calculateLevels = async () => {
-    setIsLoading(true)
-    setError(null)
-    try {
-      // Get current price
-      const quote = await getQuote(symbol)
-      const currentPrice = quote.regularMarketPrice
-
-      // Get historical data for volatility calculation
-      const historicalData = await getHistoricalData(symbol, interval, range)
-      
-      if (!historicalData || historicalData.length === 0) {
-        throw new Error('No historical data available')
-      }
-
-      // Calculate average true range (ATR) for volatility
-      const atr = calculateATR(historicalData)
-      
-      // Calculate entry prices (current price and ±0.5 ATR)
-      const entryPrices = [
-        { price: currentPrice - atr * 0.5, percentage: -0.5 },
-        { price: currentPrice, percentage: 0 },
-        { price: currentPrice + atr * 0.5, percentage: 0.5 }
-      ]
-      setEntries(entryPrices)
-      
-      // Calculate take profit levels (1x, 2x, 3x ATR above entry)
-      const takeProfitLevels = entryPrices.map(entry => ({
-        price: entry.price + atr * 2,
-        percentage: ((entry.price + atr * 2 - entry.price) / entry.price) * 100
-      }))
-      setTakeProfits(takeProfitLevels)
-      
-      // Calculate stop loss levels (0.5x, 1x, 1.5x ATR below entry)
-      const stopLossLevels = entryPrices.map(entry => ({
-        price: entry.price - atr,
-        percentage: ((entry.price - atr - entry.price) / entry.price) * 100
-      }))
-      setStopLosses(stopLossLevels)
-
-      // Calculate risk-reward ratio based on middle entry
-      const middleEntry = entryPrices[1]
-      const risk = middleEntry.price - stopLossLevels[1].price
-      const reward = takeProfitLevels[1].price - middleEntry.price
-      setRiskRewardRatio(reward / risk)
-    } catch (err) {
-      console.error('Error calculating risk levels:', err)
-      setError(err instanceof Error ? err.message : 'Failed to calculate risk levels')
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const calculateATR = (data: any[]) => {
-    const trueRanges = data.slice(1).map((d, i) => {
-      const high = d.high
-      const low = d.low
-      const prevClose = data[i].close
-      return Math.max(
-        high - low,
-        Math.abs(high - prevClose),
-        Math.abs(low - prevClose)
-      )
-    })
-    
-    // Calculate 14-period ATR
-    const period = 14
-    const atr = trueRanges.slice(-period).reduce((a, b) => a + b, 0) / period
-    return atr
-  }
+export default function RiskManagement({ data }: RiskManagementProps) {
+  const [entryPrices, setEntryPrices] = useState<PriceLevel[]>([{ price: 0, quantity: 0 }])
+  const [takeProfits, setTakeProfits] = useState<PriceLevel[]>([{ price: 0, quantity: 0 }])
+  const [stopLoss, setStopLoss] = useState<number>(0)
+  const [riskRewardRatio, setRiskRewardRatio] = useState<number>(0)
+  const [positionSize, setPositionSize] = useState<number>(0)
+  const [accountSize, setAccountSize] = useState<number>(1000000) // Default 1M IDR
 
   useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true)
-      try {
-        const historicalData = await getHistoricalData(symbol, interval, range)
-        setData(historicalData)
-      } catch (error) {
-        console.error('Error fetching data:', error)
+    if (!data || data.length === 0) return
+
+    // Calculate average true range (ATR) for stop loss
+    const calculateATR = (data: StockData[], period: number = 14) => {
+      const trueRanges: number[] = []
+      for (let i = 1; i < data.length; i++) {
+        const high = data[i].high
+        const low = data[i].low
+        const prevClose = data[i - 1].close
+        const tr = Math.max(
+          high - low,
+          Math.abs(high - prevClose),
+          Math.abs(low - prevClose)
+        )
+        trueRanges.push(tr)
       }
-      setLoading(false)
+
+      let atr = trueRanges.slice(0, period).reduce((a, b) => a + b, 0) / period
+      for (let i = period; i < trueRanges.length; i++) {
+        atr = (atr * (period - 1) + trueRanges[i]) / period
+      }
+
+      return atr
     }
 
-    fetchData()
-  }, [symbol, interval, range])
+    const atr = calculateATR(data)
+    const currentPrice = data[data.length - 1].close
+    setStopLoss(currentPrice - atr * 2) // 2 ATR below current price
+  }, [data])
 
-  useEffect(() => {
-    if (symbol) {
-      calculateLevels()
-    }
-  }, [symbol])
+  const addEntryPrice = () => {
+    setEntryPrices([...entryPrices, { price: 0, quantity: 0 }])
+  }
 
-  const renderPriceLevels = (levels: PriceLevel[], type: 'entry' | 'takeProfit' | 'stopLoss') => {
-    const colors = {
-      entry: 'gray',
-      takeProfit: 'green',
-      stopLoss: 'red'
-    }
-    const color = colors[type]
-    const labels = {
-      entry: 'Entry',
-      takeProfit: 'Take Profit',
-      stopLoss: 'Stop Loss'
-    }
+  const removeEntryPrice = (index: number) => {
+    setEntryPrices(entryPrices.filter((_, i) => i !== index))
+  }
 
-    return (
-      <div className="space-y-3">
-        {levels.map((level, index) => (
-          <div
-            key={index}
-            className={`p-3 bg-${color}-50 rounded-lg border border-${color}-200`}
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">{labels[type]} {index + 1}</span>
-              <span className={`text-sm text-${color}-600`}>
-                {level.percentage > 0 ? '+' : ''}{level.percentage.toFixed(2)}%
-              </span>
-            </div>
-            <div className={`text-lg font-bold text-${color}-600 mt-1`}>
-              {formatIDR(level.price)}
-            </div>
-          </div>
-        ))}
-      </div>
-    )
+  const updateEntryPrice = (index: number, field: keyof PriceLevel, value: number) => {
+    const newEntryPrices = [...entryPrices]
+    newEntryPrices[index] = { ...newEntryPrices[index], [field]: value }
+    setEntryPrices(newEntryPrices)
+  }
+
+  const addTakeProfit = () => {
+    setTakeProfits([...takeProfits, { price: 0, quantity: 0 }])
+  }
+
+  const removeTakeProfit = (index: number) => {
+    setTakeProfits(takeProfits.filter((_, i) => i !== index))
+  }
+
+  const updateTakeProfit = (index: number, field: keyof PriceLevel, value: number) => {
+    const newTakeProfits = [...takeProfits]
+    newTakeProfits[index] = { ...newTakeProfits[index], [field]: value }
+    setTakeProfits(newTakeProfits)
+  }
+
+  const calculatePositionSize = () => {
+    const totalRisk = entryPrices.reduce((sum, entry) => {
+      const riskPerShare = entry.price - stopLoss
+      return sum + (riskPerShare * entry.quantity)
+    }, 0)
+
+    const maxRiskAmount = accountSize * 0.02 // 2% risk per trade
+    const calculatedSize = maxRiskAmount / totalRisk
+
+    setPositionSize(calculatedSize)
+  }
+
+  const calculateRiskReward = () => {
+    const totalRisk = entryPrices.reduce((sum, entry) => {
+      const riskPerShare = entry.price - stopLoss
+      return sum + (riskPerShare * entry.quantity)
+    }, 0)
+
+    const totalReward = takeProfits.reduce((sum, tp) => {
+      const rewardPerShare = tp.price - entryPrices[0].price
+      return sum + (rewardPerShare * tp.quantity)
+    }, 0)
+
+    setRiskRewardRatio(totalReward / totalRisk)
   }
 
   return (
-    <div className="p-6 bg-white rounded-lg shadow-lg">
-      <div className="flex justify-between items-center mb-6">
+    <div className="space-y-6">
+      <h2 className="text-xl font-semibold">Risk Management</h2>
+
+      <div className="space-y-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-800">Risk Management</h2>
-          <p className="text-sm text-gray-500 mt-1">Trading levels for {symbol}</p>
+          <h3 className="text-lg font-medium">Entry Prices</h3>
+          {entryPrices.map((entry, index) => (
+            <div key={index} className="flex gap-4 mt-2">
+              <input
+                type="number"
+                value={entry.price}
+                onChange={(e) => updateEntryPrice(index, 'price', parseFloat(e.target.value))}
+                className="flex-1 p-2 rounded bg-background border border-border"
+                placeholder="Price"
+              />
+              <input
+                type="number"
+                value={entry.quantity}
+                onChange={(e) => updateEntryPrice(index, 'quantity', parseFloat(e.target.value))}
+                className="flex-1 p-2 rounded bg-background border border-border"
+                placeholder="Quantity"
+              />
+              {index > 0 && (
+                <button
+                  onClick={() => removeEntryPrice(index)}
+                  className="p-2 text-red-500 hover:text-red-600"
+                >
+                  Remove
+                </button>
+              )}
+            </div>
+          ))}
+          <button
+            onClick={addEntryPrice}
+            className="mt-2 p-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          >
+            Add Entry Price
+          </button>
         </div>
-        <button
-          onClick={calculateLevels}
-          disabled={isLoading}
-          className="p-2 text-gray-600 hover:text-accent transition-colors"
-          title="Recalculate levels"
-        >
-          <FiRefreshCw className={`w-5 h-5 ${isLoading ? 'animate-spin' : ''}`} />
-        </button>
-      </div>
 
-      <div className="mb-6">
-        <TimeframeSelector
-          selected={interval}
-          range={range}
-          onChange={setInterval}
-          onRangeChange={setRange}
-        />
-      </div>
-
-      {loading ? (
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent"></div>
+        <div>
+          <h3 className="text-lg font-medium">Take Profit Levels</h3>
+          {takeProfits.map((tp, index) => (
+            <div key={index} className="flex gap-4 mt-2">
+              <input
+                type="number"
+                value={tp.price}
+                onChange={(e) => updateTakeProfit(index, 'price', parseFloat(e.target.value))}
+                className="flex-1 p-2 rounded bg-background border border-border"
+                placeholder="Price"
+              />
+              <input
+                type="number"
+                value={tp.quantity}
+                onChange={(e) => updateTakeProfit(index, 'quantity', parseFloat(e.target.value))}
+                className="flex-1 p-2 rounded bg-background border border-border"
+                placeholder="Quantity"
+              />
+              {index > 0 && (
+                <button
+                  onClick={() => removeTakeProfit(index)}
+                  className="p-2 text-red-500 hover:text-red-600"
+                >
+                  Remove
+                </button>
+              )}
+            </div>
+          ))}
+          <button
+            onClick={addTakeProfit}
+            className="mt-2 p-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          >
+            Add Take Profit
+          </button>
         </div>
-      ) : (
-        <div className="space-y-6">
-          {error && (
-            <div className="flex items-center space-x-2 p-4 bg-red-50 border border-red-200 rounded-lg text-red-600">
-              <FiAlertCircle className="w-5 h-5" />
-              <span>{error}</span>
-            </div>
-          )}
 
-          <div className="grid grid-cols-3 gap-6">
-            <div className="space-y-4">
-              <div className="flex items-center space-x-2">
-                <h3 className="text-lg font-semibold text-gray-700">Entry Prices</h3>
-                <div className="group relative">
-                  <FiInfo className="w-4 h-4 text-gray-400 cursor-help" />
-                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-800 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                    Suggested entry price levels
-                  </div>
-                </div>
-              </div>
-              {renderPriceLevels(entries, 'entry')}
-            </div>
+        <div>
+          <h3 className="text-lg font-medium">Stop Loss</h3>
+          <input
+            type="number"
+            value={stopLoss}
+            onChange={(e) => setStopLoss(parseFloat(e.target.value))}
+            className="w-full p-2 rounded bg-background border border-border"
+            placeholder="Stop Loss Price"
+          />
+        </div>
 
-            <div className="space-y-4">
-              <div className="flex items-center space-x-2">
-                <h3 className="text-lg font-semibold text-green-600">Take Profit</h3>
-                <div className="group relative">
-                  <FiInfo className="w-4 h-4 text-gray-400 cursor-help" />
-                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-800 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                    Target prices for profit taking
-                  </div>
-                </div>
-              </div>
-              {renderPriceLevels(takeProfits, 'takeProfit')}
-            </div>
+        <div>
+          <h3 className="text-lg font-medium">Account Size</h3>
+          <input
+            type="number"
+            value={accountSize}
+            onChange={(e) => setAccountSize(parseFloat(e.target.value))}
+            className="w-full p-2 rounded bg-background border border-border"
+            placeholder="Account Size"
+          />
+        </div>
 
-            <div className="space-y-4">
-              <div className="flex items-center space-x-2">
-                <h3 className="text-lg font-semibold text-red-600">Stop Loss</h3>
-                <div className="group relative">
-                  <FiInfo className="w-4 h-4 text-gray-400 cursor-help" />
-                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-800 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                    Price levels to limit potential losses
-                  </div>
-                </div>
-              </div>
-              {renderPriceLevels(stopLosses, 'stopLoss')}
-            </div>
+        <div className="flex gap-4">
+          <button
+            onClick={calculatePositionSize}
+            className="flex-1 p-2 bg-green-600 text-white rounded hover:bg-green-700"
+          >
+            Calculate Position Size
+          </button>
+          <button
+            onClick={calculateRiskReward}
+            className="flex-1 p-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          >
+            Calculate Risk/Reward
+          </button>
+        </div>
+
+        {positionSize > 0 && (
+          <div className="p-4 bg-green-500/10 rounded">
+            <h3 className="text-lg font-medium text-green-500">Position Size</h3>
+            <p className="text-2xl font-bold">{positionSize.toFixed(2)} shares</p>
           </div>
+        )}
 
-          <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
-            <div className="flex items-center justify-between">
-              <span className="text-gray-700">Risk/Reward Ratio</span>
-              <span className="text-lg font-bold text-gray-800">
-                {isLoading ? 'Calculating...' : riskRewardRatio ? `${riskRewardRatio.toFixed(2)}:1` : '-'}
-              </span>
-            </div>
+        {riskRewardRatio > 0 && (
+          <div className="p-4 bg-blue-500/10 rounded">
+            <h3 className="text-lg font-medium text-blue-500">Risk/Reward Ratio</h3>
+            <p className="text-2xl font-bold">{riskRewardRatio.toFixed(2)}</p>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   )
 } 

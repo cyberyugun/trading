@@ -1,66 +1,97 @@
 'use client'
 
 import { useState } from 'react'
-import { FiCheck } from 'react-icons/fi'
+import { FiPlus, FiTrash2 } from 'react-icons/fi'
 
 interface TechnicalIndicatorsProps {
-  selected?: string[]
-  onChange?: (indicators: string[]) => void
+  selectedIndicators: Array<{
+    name: string
+    params: Record<string, number>
+  }>
+  onChange: (indicators: Array<{
+    name: string
+    params: Record<string, number>
+  }>) => void
 }
 
-const TechnicalIndicators: React.FC<TechnicalIndicatorsProps> = ({
-  selected = [],
-  onChange = () => {}
-}) => {
-  const [indicators, setIndicators] = useState<string[]>(selected)
+const AVAILABLE_INDICATORS: Array<{
+  name: string
+  params: Record<string, number>
+}> = [
+  { name: 'SMA', params: { period: 20 } },
+  { name: 'EMA', params: { period: 20 } },
+  { name: 'RSI', params: { period: 14 } },
+  { name: 'MACD', params: { fastPeriod: 12, slowPeriod: 26, signalPeriod: 9 } },
+  { name: 'BB', params: { period: 20, stdDev: 2 } },
+]
 
-  const toggleIndicator = (indicator: string) => {
-    const newIndicators = indicators.includes(indicator)
-      ? indicators.filter(i => i !== indicator)
-      : [...indicators, indicator]
-    
-    setIndicators(newIndicators)
+export default function TechnicalIndicators({ selectedIndicators, onChange }: TechnicalIndicatorsProps) {
+  const [selectedIndicator, setSelectedIndicator] = useState('')
+  const [params, setParams] = useState<Record<string, number>>({})
+
+  const handleAddIndicator = () => {
+    if (!selectedIndicator) return
+
+    const indicator = AVAILABLE_INDICATORS.find(i => i.name === selectedIndicator)
+    if (!indicator) return
+
+    const newIndicators = [...selectedIndicators, { name: selectedIndicator, params: indicator.params }]
+    onChange(newIndicators)
+    setSelectedIndicator('')
+    setParams({})
+  }
+
+  const handleRemoveIndicator = (index: number) => {
+    const newIndicators = selectedIndicators.filter((_, i) => i !== index)
     onChange(newIndicators)
   }
 
-  const indicatorGroups = {
-    'Trend': ['MA', 'EMA', 'MACD', 'ADX'],
-    'Momentum': ['RSI', 'Stochastic', 'CCI', 'Williams %R'],
-    'Volatility': ['Bollinger Bands', 'ATR', 'Keltner Channels'],
-    'Volume': ['OBV', 'Volume MA', 'Chaikin Money Flow']
+  const handleParamChange = (name: string, value: string) => {
+    setParams(prev => ({
+      ...prev,
+      [name]: parseFloat(value) || 0
+    }))
   }
 
   return (
-    <div className="p-6 bg-white rounded-lg shadow-lg">
-      <h2 className="text-2xl font-bold text-gray-800 mb-6">Technical Indicators</h2>
-      
-      <div className="grid grid-cols-2 gap-6">
-        {Object.entries(indicatorGroups).map(([group, groupIndicators]) => (
-          <div key={group} className="space-y-3">
-            <h3 className="text-lg font-semibold text-gray-700">{group}</h3>
-            <div className="space-y-2">
-              {groupIndicators.map(indicator => (
-                <button
-                  key={indicator}
-                  onClick={() => toggleIndicator(indicator)}
-                  className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-colors ${
-                    indicators.includes(indicator)
-                      ? 'bg-accent text-white hover:bg-accent-hover'
-                      : 'bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200'
-                  }`}
-                >
-                  <span className="font-medium">{indicator}</span>
-                  {indicators.includes(indicator) && (
-                    <FiCheck className="w-5 h-5" />
-                  )}
-                </button>
-              ))}
-            </div>
-          </div>
-        ))}
+    <div className="space-y-4">
+      <h2 className="text-xl font-semibold">Technical Indicators</h2>
+      <div className="flex gap-4">
+        <select
+          value={selectedIndicator}
+          onChange={(e) => setSelectedIndicator(e.target.value)}
+          className="flex-1 p-2 rounded bg-background border border-border"
+        >
+          <option value="">Select Indicator</option>
+          {AVAILABLE_INDICATORS.map(indicator => (
+            <option key={indicator.name} value={indicator.name}>
+              {indicator.name}
+            </option>
+          ))}
+        </select>
+        <button
+          onClick={handleAddIndicator}
+          className="p-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+        >
+          <FiPlus className="w-5 h-5" />
+        </button>
       </div>
+
+      {selectedIndicators.length > 0 && (
+        <div className="space-y-2">
+          {selectedIndicators.map((indicator, index) => (
+            <div key={index} className="flex items-center gap-2 p-2 bg-background rounded">
+              <span className="flex-1">{indicator.name}</span>
+              <button
+                onClick={() => handleRemoveIndicator(index)}
+                className="p-1 text-red-500 hover:text-red-600"
+              >
+                <FiTrash2 className="w-4 h-4" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
-}
-
-export default TechnicalIndicators 
+} 

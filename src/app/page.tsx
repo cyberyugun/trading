@@ -10,8 +10,9 @@ import VolumeAnalysis from '@/components/VolumeAnalysis'
 import RiskManagement from '@/components/RiskManagement'
 import Backtesting from '@/components/Backtesting'
 import PriceAlert from '@/components/PriceAlert'
+import DCARecommendation from '@/components/DCARecommendation'
 import { FiSearch, FiRefreshCw } from 'react-icons/fi'
-import { searchStocks, SearchResult } from '@/lib/yahooFinance'
+import { searchStocks, SearchResult, getHistoricalData, StockData } from '@/lib/yahooFinance'
 import { TimeInterval, TimeRange } from '@/types/timeframe'
 
 export default function Home() {
@@ -19,7 +20,12 @@ export default function Home() {
   const [range, setRange] = useState<TimeRange>('1mo')
   const [symbol, setSymbol] = useState('BBCA.JK') // Default to BCA stock
   const [searchQuery, setSearchQuery] = useState('')
-  const [selectedIndicators, setSelectedIndicators] = useState<string[]>([])
+  const [selectedIndicators, setSelectedIndicators] = useState<Array<{
+    name: string
+    params: Record<string, number>
+  }>>([])
+  const [stockData, setStockData] = useState<StockData[]>([])
+  const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [searchResults, setSearchResults] = useState<SearchResult[]>([])
   const [isSearching, setIsSearching] = useState(false)
@@ -48,6 +54,27 @@ export default function Home() {
     }
   }, [searchQuery])
 
+  useEffect(() => {
+    const fetchData = async () => {
+      setIsLoading(true)
+      setError(null)
+      try {
+        const data = await getHistoricalData(symbol, timeframe, range)
+        if (!data || data.length === 0) {
+          throw new Error('No data available')
+        }
+        setStockData(data)
+      } catch (err) {
+        console.error('Error fetching stock data:', err)
+        setError(err instanceof Error ? err.message : 'Failed to fetch stock data')
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchData()
+  }, [symbol, timeframe, range])
+
   const handleSearch = () => {
     if (searchQuery.length >= 2) {
       searchStocks(searchQuery)
@@ -65,6 +92,13 @@ export default function Home() {
     setSymbol(result.symbol)
     setSearchQuery('')
     setSearchResults([])
+  }
+
+  const handleIndicatorChange = (indicators: Array<{
+    name: string
+    params: Record<string, number>
+  }>) => {
+    setSelectedIndicators(indicators)
   }
 
   return (
@@ -125,12 +159,12 @@ export default function Home() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-8">
             <div className="bg-secondary rounded-lg p-6 shadow-lg">
-              <Chart timeframe={timeframe} range={range} symbol={symbol} />
+              <Chart data={stockData} selectedIndicators={selectedIndicators} />
             </div>
             <div className="bg-secondary rounded-lg p-6 shadow-lg">
               <TechnicalIndicators
-                selected={selectedIndicators}
-                onChange={setSelectedIndicators}
+                onChange={handleIndicatorChange}
+                selectedIndicators={selectedIndicators}
               />
             </div>
             <div className="bg-secondary rounded-lg p-6 shadow-lg">
@@ -143,13 +177,16 @@ export default function Home() {
 
           <div className="space-y-8">
             <div className="bg-secondary rounded-lg p-6 shadow-lg">
-              <SupportResistance symbol={symbol} />
+              <SupportResistance data={stockData} />
             </div>
             <div className="bg-secondary rounded-lg p-6 shadow-lg">
               <FibonacciRetracement />
             </div>
             <div className="bg-secondary rounded-lg p-6 shadow-lg">
-              <RiskManagement symbol={symbol} />
+              <RiskManagement data={stockData} />
+            </div>
+            <div className="bg-secondary rounded-lg p-6 shadow-lg">
+              <DCARecommendation data={stockData} />
             </div>
             <div className="bg-secondary rounded-lg p-6 shadow-lg">
               <PriceAlert symbol={symbol} />
