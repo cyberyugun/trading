@@ -473,6 +473,29 @@ const calculateElderRay = (high: number[], low: number[], close: number[], perio
   return { bullPower, bearPower };
 };
 
+// Helper function to fetch stock data from Yahoo Finance
+const fetchStockData = async (symbol: string) => {
+  try {
+    const response = await axios.get(`https://query1.finance.yahoo.com/v10/finance/quoteSummary/${symbol}`, {
+      params: {
+        modules: 'summaryDetail,price,defaultKeyStatistics,financialData',
+        formatted: true
+      },
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        'Accept': 'application/json',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Origin': 'https://finance.yahoo.com',
+        'Referer': 'https://finance.yahoo.com'
+      }
+    });
+    return response.data.quoteSummary.result[0];
+  } catch (error) {
+    console.error(`Error fetching data for ${symbol}:`, error);
+    return null;
+  }
+};
+
 export const getInvestmentRecommendations = async (): Promise<StockRecommendation[]> => {
   try {
     // Expanded list of stocks to analyze
@@ -525,39 +548,68 @@ export const getInvestmentRecommendations = async (): Promise<StockRecommendatio
         // Get current price
         const currentPrice = historicalData[historicalData.length - 1].close;
 
-        // Fetch additional fundamental data from Yahoo Finance
-        const response = await axios.get(`https://query1.finance.yahoo.com/v10/finance/quoteSummary/${symbol}`, {
-          params: {
-            modules: 'summaryDetail,defaultKeyStatistics,financialData,balanceSheetHistory,cashflowStatementHistory',
-            formatted: true
-          }
-        });
+        // Fetch stock data with proper headers
+        const stockData = await fetchStockData(symbol);
+        if (!stockData) continue;
 
-        const { summaryDetail, defaultKeyStatistics, financialData, balanceSheetHistory, cashflowStatementHistory } = response.data.quoteSummary.result[0];
-        
         const metrics = {
-          peRatio: defaultKeyStatistics?.forwardPE?.raw || 0,
-          dividendYield: summaryDetail?.dividendYield?.raw || 0,
-          marketCap: summaryDetail?.marketCap?.raw || 0,
-          beta: defaultKeyStatistics?.beta?.raw || 1,
-          profitMargin: financialData?.profitMargins?.raw || 0,
-          debtToEquity: defaultKeyStatistics?.debtToEquity?.raw || 0,
-          currentRatio: financialData?.currentRatio?.raw || 0,
-          eps: defaultKeyStatistics?.trailingEps?.raw || 0,
-          revenueGrowth: financialData?.revenueGrowth?.raw || 0,
-          freeCashFlow: cashflowStatementHistory?.cashflowStatements[0]?.totalCashFromOperatingActivities?.raw || 0
+          peRatio: stockData.defaultKeyStatistics?.forwardPE?.raw || 0,
+          dividendYield: stockData.summaryDetail?.dividendYield?.raw || 0,
+          marketCap: stockData.summaryDetail?.marketCap?.raw || 0,
+          beta: stockData.defaultKeyStatistics?.beta?.raw || 0,
+          profitMargin: stockData.financialData?.profitMargins?.raw || 0,
+          debtToEquity: stockData.financialData?.debtToEquity?.raw || 0,
+          currentRatio: stockData.financialData?.currentRatio?.raw || 0,
+          eps: stockData.defaultKeyStatistics?.trailingEps?.raw || 0,
+          revenueGrowth: stockData.financialData?.revenueGrowth?.raw || 0,
+          freeCashFlow: stockData.financialData?.freeCashflow?.raw || 0,
+          price: currentPrice
         };
 
         const confidence = calculateConfidence(metrics, 'investment');
         
-        let recommendation = 'Hold';
-        if (confidence > 0.7 && metrics.profitMargin > 0.1 && metrics.revenueGrowth > 0) recommendation = 'Strong Buy';
-        else if (confidence > 0.6 && metrics.profitMargin > 0 && metrics.revenueGrowth > -0.1) recommendation = 'Buy';
-        else if (confidence < 0.3 || metrics.profitMargin < 0 || metrics.revenueGrowth < -0.2) recommendation = 'Sell';
+        let recommendation = 'Neutral';
+        if (confidence > 0.7 && 
+            metrics.peRatio > 0 && 
+            metrics.peRatio < 30 && 
+            metrics.dividendYield > 0.02 && 
+            metrics.marketCap > 1e9 && 
+            metrics.beta < 1.5 &&
+            metrics.profitMargin > 0.1 &&
+            metrics.debtToEquity < 2 &&
+            metrics.currentRatio > 1 &&
+            metrics.eps > 0 &&
+            metrics.revenueGrowth > 0 &&
+            metrics.freeCashFlow > 0) {
+          recommendation = 'Strong Buy';
+        } else if (confidence > 0.5 && 
+                   metrics.peRatio > 0 && 
+                   metrics.peRatio < 40 && 
+                   metrics.dividendYield > 0.01 && 
+                   metrics.marketCap > 5e8 &&
+                   metrics.beta < 2 &&
+                   metrics.profitMargin > 0.05 &&
+                   metrics.debtToEquity < 3 &&
+                   metrics.currentRatio > 0.8 &&
+                   metrics.eps > 0) {
+          recommendation = 'Buy';
+        } else if (confidence < 0.3 || 
+                   metrics.peRatio < 0 || 
+                   metrics.dividendYield < 0 || 
+                   metrics.marketCap < 1e8 ||
+                   metrics.beta > 2.5 ||
+                   metrics.profitMargin < 0 ||
+                   metrics.debtToEquity > 4 ||
+                   metrics.currentRatio < 0.5 ||
+                   metrics.eps < 0 ||
+                   metrics.revenueGrowth < -0.1 ||
+                   metrics.freeCashFlow < 0) {
+          recommendation = 'Avoid';
+        }
 
         recommendations.push({
           symbol,
-          name: response.data.quoteSummary.result[0].price.longName,
+          name: stockData.price?.longName || symbol,
           price: currentPrice,
           recommendation,
           confidence,
@@ -632,6 +684,7 @@ export const getSwingTradingRecommendations = async (): Promise<StockRecommendat
         const lows = historicalData.map(d => d.low);
         const currentPrice = prices[prices.length - 1];
 
+        // Calculate all technical indicators
         const bollingerBands = calculateBollingerBands(prices);
         const atr = calculateATR(highs, lows, prices);
         const stochastic = calculateStochastic(highs, lows, prices);
@@ -647,6 +700,10 @@ export const getSwingTradingRecommendations = async (): Promise<StockRecommendat
         const rvi = calculateRVI(prices);
         const forceIndex = calculateForceIndex(prices, volumes);
         const elderRay = calculateElderRay(highs, lows, prices);
+
+        // Fetch stock data with proper headers
+        const stockData = await fetchStockData(symbol);
+        if (!stockData) continue;
 
         const metrics = {
           volatility: calculateVolatility(prices),
@@ -675,18 +732,8 @@ export const getSwingTradingRecommendations = async (): Promise<StockRecommendat
           bullPower: elderRay.bullPower,
           bearPower: elderRay.bearPower,
           price: currentPrice,
-          marketCap: 0 // Will be filled from Yahoo Finance
+          marketCap: stockData.summaryDetail?.marketCap?.raw || 0
         };
-
-        // Fetch market cap from Yahoo Finance
-        const response = await axios.get(`https://query1.finance.yahoo.com/v10/finance/quoteSummary/${symbol}`, {
-          params: {
-            modules: 'summaryDetail,price',
-            formatted: true
-          }
-        });
-
-        metrics.marketCap = response.data.quoteSummary.result[0].summaryDetail.marketCap.raw;
 
         const confidence = calculateConfidence(metrics, 'swing');
         
@@ -730,7 +777,7 @@ export const getSwingTradingRecommendations = async (): Promise<StockRecommendat
 
         recommendations.push({
           symbol,
-          name: response.data.quoteSummary.result[0].price.longName,
+          name: stockData.price?.longName || symbol,
           price: currentPrice,
           recommendation,
           confidence,
