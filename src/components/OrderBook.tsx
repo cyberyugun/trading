@@ -9,24 +9,58 @@ interface OrderBookProps {
 export const OrderBookComponent: React.FC<OrderBookProps> = ({ symbol }) => {
   const [orderBook, setOrderBook] = useState<OrderBook | null>(null);
   const [analysis, setAnalysis] = useState<OrderBookAnalysis | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const orderBookService = OrderBookService.getInstance();
-    orderBookService.connect(symbol);
+    setIsLoading(true);
+    setError(null);
 
-    const unsubscribe = orderBookService.subscribe((data) => {
-      setOrderBook(data);
-      setAnalysis(orderBookService.analyzeOrderBook(data));
-    });
+    try {
+      orderBookService.connect(symbol);
 
-    return () => {
-      unsubscribe();
-      orderBookService.disconnect();
-    };
+      const unsubscribe = orderBookService.subscribe((data) => {
+        setOrderBook(data);
+        setAnalysis(orderBookService.analyzeOrderBook(data));
+        setIsLoading(false);
+      });
+
+      return () => {
+        unsubscribe();
+        orderBookService.disconnect();
+      };
+    } catch (err) {
+      setError('Failed to connect to orderbook');
+      setIsLoading(false);
+    }
   }, [symbol]);
 
+  if (isLoading) {
+    return (
+      <div className="bg-gray-900 text-white p-4 rounded-lg">
+        <div className="animate-pulse space-y-4">
+          <div className="h-4 bg-gray-700 rounded w-3/4"></div>
+          <div className="space-y-2">
+            <div className="h-4 bg-gray-700 rounded"></div>
+            <div className="h-4 bg-gray-700 rounded"></div>
+            <div className="h-4 bg-gray-700 rounded"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-gray-900 text-white p-4 rounded-lg">
+        <div className="text-red-500">{error}</div>
+      </div>
+    );
+  }
+
   if (!orderBook || !analysis) {
-    return <div className="p-4">Loading orderbook...</div>;
+    return null;
   }
 
   return (
@@ -70,7 +104,7 @@ export const OrderBookComponent: React.FC<OrderBookProps> = ({ symbol }) => {
             <div>
               <h3 className="text-lg font-semibold mb-2 text-green-500">Bids</h3>
               <div className="space-y-1">
-                {orderBook.bids.slice(0, 10).map((bid, index) => (
+                {orderBook.bids.map((bid, index) => (
                   <div key={index} className="flex justify-between bg-gray-800 p-2 rounded">
                     <span className="text-green-500">{bid.price.toFixed(2)}</span>
                     <span>{bid.quantity.toLocaleString()}</span>
@@ -84,7 +118,7 @@ export const OrderBookComponent: React.FC<OrderBookProps> = ({ symbol }) => {
             <div>
               <h3 className="text-lg font-semibold mb-2 text-red-500">Asks</h3>
               <div className="space-y-1">
-                {orderBook.asks.slice(0, 10).map((ask, index) => (
+                {orderBook.asks.map((ask, index) => (
                   <div key={index} className="flex justify-between bg-gray-800 p-2 rounded">
                     <span className="text-red-500">{ask.price.toFixed(2)}</span>
                     <span>{ask.quantity.toLocaleString()}</span>

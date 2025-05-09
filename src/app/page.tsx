@@ -12,6 +12,7 @@ import Backtesting from '@/components/Backtesting'
 import PriceAlert from '@/components/PriceAlert'
 import DCARecommendation from '@/components/DCARecommendation'
 import { OrderBookComponent } from '@/components/OrderBook'
+import StockRecommendations from '@/components/StockRecommendations'
 import { FiSearch, FiRefreshCw } from 'react-icons/fi'
 import { searchStocks, SearchResult, getHistoricalData, StockData } from '@/lib/yahooFinance'
 import { TimeInterval, TimeRange } from '@/types/timeframe'
@@ -177,6 +178,9 @@ export default function Home() {
           </div>
 
           <div className="space-y-8">
+            <div className="bg-secondary rounded-lg p-6 shadow-lg">
+              <StockRecommendations />
+            </div>
             <div className="bg-secondary rounded-lg p-6 shadow-lg">
               <SupportResistance data={stockData} />
             </div>

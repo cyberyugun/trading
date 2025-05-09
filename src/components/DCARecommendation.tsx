@@ -57,16 +57,20 @@ export default function DCARecommendation({ data }: DCARecommendationProps) {
 
     // Calculate DCA levels
     const levels: DCAStrategy[] = []
-    const baseAmount = totalInvestment / numberOfLevels
     let cumulativeInvestment = 0
     let totalShares = 0
+
+    // Calculate total weight for proper distribution
+    const totalWeight = (numberOfLevels * (numberOfLevels + 1)) / 2 // Sum of 1 to n
 
     for (let i = 0; i < numberOfLevels; i++) {
       // Calculate price level using ATR with a more conservative approach
       const level = latestPrice - (currentATR * (i + 1) * 0.5) // Use 0.5 multiplier for more conservative levels
       
-      // Calculate investment amount with decreasing allocation for lower prices
-      const amount = baseAmount * (1 + (i * 0.1)) // More conservative 10% increase per level
+      // Calculate investment amount with proper distribution
+      // Higher levels (lower prices) get more investment
+      const weight = numberOfLevels - i // Higher weight for lower prices
+      const amount = (totalInvestment * weight) / totalWeight
       
       // Calculate shares that would be purchased at this level
       const shares = amount / level
