@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { StockData } from '@/lib/api'
-import { FiInfo } from 'react-icons/fi'
+import { FiInfo, FiDollarSign, FiTrendingDown, FiLayers } from 'react-icons/fi'
+import { formatIDR } from '@/lib/utils'
 
 interface DCARecommendationProps {
   data: StockData[]
@@ -100,92 +101,123 @@ export default function DCARecommendation({ data }: DCARecommendationProps) {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-xl font-semibold">DCA Recommendation</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-semibold">DCA Recommendation</h2>
+        <div className="flex items-center gap-2 text-sm text-gray-400">
+          <FiInfo className="w-4 h-4" />
+          <span>Based on support levels</span>
+        </div>
+      </div>
 
-      <div className="space-y-4">
-        <div>
-          <h3 className="text-lg font-medium">Current Position</h3>
-          <div className="flex gap-4 mt-2">
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-400">Current Position</label>
+            <div className="flex gap-4">
+              <div className="flex-1">
+                <input
+                  type="number"
+                  value={currentPosition.price}
+                  onChange={(e) => setCurrentPosition(prev => ({ ...prev, price: parseFloat(e.target.value) }))}
+                  className="w-full p-2 rounded bg-background border border-border focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  placeholder="Entry Price"
+                />
+              </div>
+              <div className="flex-1">
+                <input
+                  type="number"
+                  value={currentPosition.quantity}
+                  onChange={(e) => setCurrentPosition(prev => ({ ...prev, quantity: parseFloat(e.target.value) }))}
+                  className="w-full p-2 rounded bg-background border border-border focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  placeholder="Quantity"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-400">Available Funds</label>
+            <div className="relative">
+              <FiDollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              <input
+                type="number"
+                value={availableFunds}
+                onChange={(e) => setAvailableFunds(parseFloat(e.target.value))}
+                className="w-full pl-10 p-2 rounded bg-background border border-border focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                placeholder="Available Funds"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-gray-400">Number of DCA Levels</label>
+          <div className="relative">
+            <FiLayers className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
             <input
               type="number"
-              value={currentPosition.price}
-              onChange={(e) => setCurrentPosition(prev => ({ ...prev, price: parseFloat(e.target.value) }))}
-              className="flex-1 p-2 rounded bg-background border border-border"
-              placeholder="Entry Price"
-            />
-            <input
-              type="number"
-              value={currentPosition.quantity}
-              onChange={(e) => setCurrentPosition(prev => ({ ...prev, quantity: parseFloat(e.target.value) }))}
-              className="flex-1 p-2 rounded bg-background border border-border"
-              placeholder="Quantity"
+              value={numberOfLevels}
+              onChange={(e) => setNumberOfLevels(parseInt(e.target.value))}
+              min="1"
+              max="5"
+              className="w-full pl-10 p-2 rounded bg-background border border-border focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
             />
           </div>
         </div>
 
-        <div>
-          <h3 className="text-lg font-medium">Available Funds</h3>
-          <input
-            type="number"
-            value={availableFunds}
-            onChange={(e) => setAvailableFunds(parseFloat(e.target.value))}
-            className="w-full p-2 rounded bg-background border border-border"
-            placeholder="Available Funds"
-          />
-        </div>
-
-        <div>
-          <h3 className="text-lg font-medium">Number of DCA Levels</h3>
-          <input
-            type="number"
-            value={numberOfLevels}
-            onChange={(e) => setNumberOfLevels(parseInt(e.target.value))}
-            min="1"
-            max="5"
-            className="w-full p-2 rounded bg-background border border-border"
-          />
-        </div>
-
         {dcaLevels.length > 0 && (
           <div className="space-y-4">
-            <h3 className="text-lg font-medium">DCA Levels</h3>
-            <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-medium">DCA Levels</h3>
+              <div className="flex items-center gap-2 text-sm text-gray-400">
+                <FiTrendingDown className="w-4 h-4" />
+                <span>Price targets</span>
+              </div>
+            </div>
+            <div className="space-y-3">
               {dcaLevels.map((level, index) => (
-                <div key={index} className="p-4 bg-blue-500/10 rounded">
-                  <div className="flex justify-between items-center">
-                    <span className="font-medium">Level {index + 1}</span>
-                    <span className="text-sm text-blue-500">
-                      {((level.price - currentPosition.price) / currentPosition.price * 100).toFixed(1)}% from entry
+                <div key={index} className="p-4 bg-blue-500/10 rounded-lg border border-blue-500/20">
+                  <div className="flex justify-between items-center mb-3">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">Level {index + 1}</span>
+                      <span className="px-2 py-1 text-xs bg-blue-500/20 text-blue-500 rounded">
+                        {((level.price - currentPosition.price) / currentPosition.price * 100).toFixed(1)}% from entry
+                      </span>
+                    </div>
+                    <span className="text-sm text-gray-400">
+                      {formatIDR(level.price)}
                     </span>
                   </div>
-                  <div className="grid grid-cols-2 gap-4 mt-2">
-                    <div>
-                      <p className="text-sm text-gray-500">Price</p>
-                      <p className="font-medium">{level.price.toFixed(2)}</p>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="p-2 bg-background rounded">
+                      <p className="text-xs text-gray-400">Quantity</p>
+                      <p className="font-medium">{level.quantity.toLocaleString()}</p>
                     </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Quantity</p>
-                      <p className="font-medium">{level.quantity}</p>
+                    <div className="p-2 bg-background rounded">
+                      <p className="text-xs text-gray-400">Total Cost</p>
+                      <p className="font-medium">{formatIDR(level.totalCost)}</p>
                     </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Total Cost</p>
-                      <p className="font-medium">{level.totalCost.toFixed(2)}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500">New Average</p>
-                      <p className="font-medium">{level.averagePrice.toFixed(2)}</p>
+                    <div className="p-2 bg-background rounded">
+                      <p className="text-xs text-gray-400">New Average</p>
+                      <p className="font-medium">{formatIDR(level.averagePrice)}</p>
                     </div>
                   </div>
                 </div>
               ))}
             </div>
 
-            <div className="p-4 bg-green-500/10 rounded">
-              <h3 className="text-lg font-medium text-green-500">Target Average Price</h3>
-              <p className="text-2xl font-bold">{targetAveragePrice.toFixed(2)}</p>
-              <p className="text-sm text-gray-500 mt-1">
-                {((targetAveragePrice - currentPosition.price) / currentPosition.price * 100).toFixed(1)}% from current average
-              </p>
+            <div className="p-4 bg-green-500/10 rounded-lg border border-green-500/20">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-lg font-medium text-green-500">Target Average Price</h3>
+                <span className="text-sm text-green-500">
+                  {((targetAveragePrice - currentPosition.price) / currentPosition.price * 100).toFixed(1)}% from current
+                </span>
+              </div>
+              <p className="text-2xl font-bold">{formatIDR(targetAveragePrice)}</p>
+              <div className="mt-2 flex items-center gap-2 text-sm text-gray-400">
+                <FiInfo className="w-4 h-4" />
+                <span>Final average after all DCA levels</span>
+              </div>
             </div>
           </div>
         )}
