@@ -25,10 +25,10 @@ export default function TimeframeSelector({
           id="interval"
           value={selected}
           onChange={(e) => onChange(e.target.value as TimeInterval)}
-          className="block w-full rounded-md bg-secondary border-gray-700 text-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+          className="block w-full rounded-lg bg-primary border border-gray-700 text-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-3 py-2 transition-colors"
         >
           {timeIntervalOptions.map((option) => (
-            <option key={option.value} value={option.value}>
+            <option key={option.value} value={option.value} className="bg-primary">
               {option.label}
             </option>
           ))}
@@ -43,10 +43,10 @@ export default function TimeframeSelector({
           id="range"
           value={range}
           onChange={(e) => onRangeChange(e.target.value as TimeRange)}
-          className="block w-full rounded-md bg-secondary border-gray-700 text-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+          className="block w-full rounded-lg bg-primary border border-gray-700 text-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-3 py-2 transition-colors"
         >
           {timeRangeOptions.map((option) => (
-            <option key={option.value} value={option.value}>
+            <option key={option.value} value={option.value} className="bg-primary">
               {option.label}
             </option>
           ))}
