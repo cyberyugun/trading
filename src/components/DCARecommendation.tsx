@@ -58,6 +58,8 @@ export default function DCARecommendation({ data }: DCARecommendationProps) {
     // Calculate DCA levels
     const levels: DCAStrategy[] = []
     const baseAmount = totalInvestment / numberOfLevels
+    let cumulativeInvestment = 0
+    let totalShares = 0
 
     for (let i = 0; i < numberOfLevels; i++) {
       // Calculate price level using ATR with a more conservative approach
@@ -68,15 +70,16 @@ export default function DCARecommendation({ data }: DCARecommendationProps) {
       
       // Calculate shares that would be purchased at this level
       const shares = amount / level
+      totalShares += shares
+      cumulativeInvestment += amount
       
-      // Calculate total investment and average price based on actual shares
-      const total = amount
-      const avg = level // The entry price at this level
+      // Calculate weighted average price
+      const avg = cumulativeInvestment / totalShares
 
       levels.push({
         level,
         amount,
-        totalInvestment: total,
+        totalInvestment: cumulativeInvestment,
         averagePrice: avg
       })
     }
