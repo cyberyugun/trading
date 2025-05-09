@@ -8,7 +8,7 @@ interface TechnicalIndicatorsProps {
     name: string
     params: Record<string, number>
   }>
-  onIndicatorsChange: (indicators: Array<{
+  onChange: (indicators: Array<{
     name: string
     params: Record<string, number>
   }>) => void
@@ -60,7 +60,7 @@ const AVAILABLE_INDICATORS: Array<{
 
 export default function TechnicalIndicators({
   selectedIndicators,
-  onIndicatorsChange
+  onChange
 }: TechnicalIndicatorsProps) {
   const [selectedIndicator, setSelectedIndicator] = useState<string>('')
   const [params, setParams] = useState<Record<string, number>>({})
@@ -79,14 +79,14 @@ export default function TechnicalIndicators({
       }
     ]
 
-    onIndicatorsChange(newIndicators)
+    onChange(newIndicators)
     setSelectedIndicator('')
     setParams({})
   }
 
   const handleRemoveIndicator = (index: number) => {
     const newIndicators = selectedIndicators.filter((_, i) => i !== index)
-    onIndicatorsChange(newIndicators)
+    onChange(newIndicators)
   }
 
   const handleParamChange = (key: string, value: string) => {
