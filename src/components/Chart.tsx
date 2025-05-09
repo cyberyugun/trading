@@ -1,40 +1,36 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
-import { createChart, ColorType, IChartApi } from 'lightweight-charts'
-import { FiRefreshCw } from 'react-icons/fi'
-import { getHistoricalData, StockData } from '@/lib/yahooFinance'
-import { formatIDR, formatNumber } from '@/lib/utils'
+import { useEffect, useRef } from 'react'
+import { createChart, ColorType, IChartApi, Time } from 'lightweight-charts'
+import { StockData } from '@/lib/api'
+import { calculateTechnicalIndicator } from '@/lib/api'
 
 interface ChartProps {
-  timeframe: string
-  range: string
-  symbol: string
+  data: StockData[]
+  selectedIndicators?: Array<{
+    name: string
+    params: Record<string, number>
+  }>
 }
 
-export default function Chart({ timeframe, range, symbol }: ChartProps) {
+export default function Chart({ data, selectedIndicators = [] }: ChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<IChartApi | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!chartContainerRef.current) return
 
     const chart = createChart(chartContainerRef.current, {
       layout: {
-        background: { type: ColorType.Solid, color: '#1a1a1a' },
-        textColor: '#d1d4dc',
+        background: { type: ColorType.Solid, color: '#1E1E1E' },
+        textColor: '#DDD',
       },
       grid: {
-        vertLines: { color: '#2B2B43' },
-        horzLines: { color: '#2B2B43' },
+        vertLines: { color: '#2B2B2B' },
+        horzLines: { color: '#2B2B2B' },
       },
       width: chartContainerRef.current.clientWidth,
-      height: 500,
-      localization: {
-        priceFormatter: (price: number) => formatIDR(price),
-      },
+      height: 400,
     })
 
     const candlestickSeries = chart.addCandlestickSeries({
@@ -45,57 +41,52 @@ export default function Chart({ timeframe, range, symbol }: ChartProps) {
       wickDownColor: '#ef5350',
     })
 
-    const volumeSeries = chart.addHistogramSeries({
-      color: '#26a69a',
-      priceFormat: {
-        type: 'volume',
-      },
-      priceScaleId: '',
+    const chartData = data.map(d => ({
+      time: new Date(d.timestamp * 1000).toISOString().split('T')[0] as Time,
+      open: d.open,
+      high: d.high,
+      low: d.low,
+      close: d.close,
+    }))
+
+    candlestickSeries.setData(chartData)
+
+    // Add technical indicators
+    const getIndicatorColor = (indicator: string) => {
+      const colors: Record<string, string> = {
+        'SMA': '#2196F3',
+        'EMA': '#4CAF50',
+        'RSI': '#FF9800',
+        'MACD': '#9C27B0',
+        'BB': '#F44336',
+      }
+      return colors[indicator] || '#FFFFFF'
+    }
+
+    selectedIndicators.forEach(async (indicator) => {
+      const result = await calculateTechnicalIndicator(data, indicator.name, indicator.params)
+      if (result.values.length > 0) {
+        const lineSeries = chart.addLineSeries({
+          color: getIndicatorColor(indicator.name),
+          lineWidth: 2,
+        })
+
+        const indicatorData = result.values.map((value, index) => ({
+          time: new Date(data[index].timestamp * 1000).toISOString().split('T')[0] as Time,
+          value,
+        }))
+
+        lineSeries.setData(indicatorData)
+      }
     })
 
     chartRef.current = chart
 
-    const fetchData = async () => {
-      setIsLoading(true)
-      setError(null)
-      try {
-        const data = await getHistoricalData(symbol, timeframe, range)
-        
-        if (!data || data.length === 0) {
-          throw new Error('No data available')
-        }
-
-        const candleData = data.map(d => ({
-          time: new Date(d.timestamp * 1000).toISOString().split('T')[0],
-          open: d.open,
-          high: d.high,
-          low: d.low,
-          close: d.close
-        }))
-
-        const volumeData = data.map(d => ({
-          time: new Date(d.timestamp * 1000).toISOString().split('T')[0],
-          value: d.volume,
-          color: d.close >= d.open ? '#26a69a' : '#ef5350'
-        }))
-
-        candlestickSeries.setData(candleData)
-        volumeSeries.setData(volumeData)
-
-        chart.timeScale().fitContent()
-      } catch (err) {
-        console.error('Error in Chart component:', err)
-        setError(err instanceof Error ? err.message : 'Failed to fetch stock data')
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    fetchData()
-
     const handleResize = () => {
       if (chartContainerRef.current) {
-        chart.applyOptions({ width: chartContainerRef.current.clientWidth })
+        chart.applyOptions({
+          width: chartContainerRef.current.clientWidth,
+        })
       }
     }
 
@@ -105,30 +96,23 @@ export default function Chart({ timeframe, range, symbol }: ChartProps) {
       window.removeEventListener('resize', handleResize)
       chart.remove()
     }
-  }, [timeframe, range, symbol])
+  }, [data, selectedIndicators])
+
+  const handleRefresh = () => {
+    if (chartRef.current) {
+      chartRef.current.timeScale().fitContent()
+    }
+  }
 
   return (
-    <div className="bg-primary rounded-lg p-4">
-      <div className="flex justify-end mb-4">
-        <button
-          onClick={() => {
-            // Implement the refresh logic here
-          }}
-          disabled={isLoading}
-          className="flex items-center space-x-2 px-4 py-2 bg-accent text-white rounded hover:bg-accent-hover disabled:opacity-50"
-        >
-          <FiRefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-          <span>Refresh</span>
-        </button>
-      </div>
-
-      {error && (
-        <div className="mt-4 p-4 bg-red-500/10 border border-red-500/20 rounded-md text-red-500">
-          {error}
-        </div>
-      )}
-
+    <div className="relative">
       <div ref={chartContainerRef} className="w-full" />
+      <button
+        onClick={handleRefresh}
+        className="absolute top-2 right-2 p-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+      >
+        Refresh
+      </button>
     </div>
   )
 } 

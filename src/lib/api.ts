@@ -1,9 +1,9 @@
 import axios from 'axios'
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.example.com'
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'
 
 export interface StockData {
-  time: string
+  timestamp: number
   open: number
   high: number
   low: number
