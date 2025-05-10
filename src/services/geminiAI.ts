@@ -65,7 +65,7 @@ export async function getGeminiRecommendation(
   type: 'investment' | 'swing'
 ): Promise<StockAnalysis> {
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
 
     // Prepare the prompt based on the type of analysis
     const prompt = type === 'investment' 
@@ -148,13 +148,120 @@ export async function getGeminiRecommendation(
 
 export async function getInvestmentRecommendations(): Promise<StockAnalysis[]> {
   try {
-    // Get stock data from your existing service
-    const stocks = await getInvestmentRecommendations();
-    
-    // Get AI recommendations for each stock
-    const recommendations = await Promise.all(
-      stocks.map(stock => getGeminiRecommendation(stock.symbol, stock.metrics, 'investment'))
-    );
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+
+    const prompt = `Based on your knowledge of the current market conditions and company fundamentals, provide recommendations for the top 10 Indonesian stocks (IDX - Indonesia Stock Exchange) that are good for long-term investment. For each stock, provide the information in this exact format:
+
+STOCK 1:
+SYMBOL: [Stock Symbol with .JK suffix]
+NAME: [Company Name]
+PRICE: [Current Price in IDR without currency symbol, e.g., 15000]
+RECOMMENDATION: [Strong Buy/Buy/Hold/Sell/Strong Sell]
+CONFIDENCE: [0-100]%
+
+FUNDAMENTAL METRICS:
+1. P/E Ratio: [value]
+2. Dividend Yield: [percentage]%
+3. Market Cap: [value in IDR]
+4. Profit Margin: [percentage]%
+5. Debt to Equity: [value]
+6. Current Ratio: [value]
+
+TECHNICAL INDICATORS:
+1. RSI: [value between 0-100]
+2. MACD: [value]
+3. Volume Change: [percentage]%
+4. Volatility: [value]
+5. Momentum: [value]
+6. ATR: [value]
+
+ANALYSIS:
+1. Technical: [Technical analysis summary]
+2. Fundamental: [Fundamental analysis summary]
+3. Sentiment: [Market sentiment analysis]
+4. Risk: [Risk assessment]
+
+STOCK 2:
+[Same format as above]
+
+[Continue for all 10 stocks]
+
+Please ensure:
+1. All stocks are from the Indonesia Stock Exchange (IDX)
+2. Include the .JK suffix in the stock symbols
+3. Prices should be provided as numbers without currency symbol (e.g., 15000 for Rp15.000)
+4. Each stock follows this exact format with the labels as shown
+5. Focus on major Indonesian companies with good fundamentals
+6. Include all fundamental and technical indicators with their current values
+7. Use numbered points for all metrics and analysis sections`;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
+
+    // Parse the AI response to extract recommendations
+    const recommendations: StockAnalysis[] = [];
+    const stockSections = text.split(/STOCK \d+:/); // Split by stock sections
+
+    for (const section of stockSections) {
+      if (section.trim()) {
+        const symbol = section.match(/SYMBOL:\s*([A-Z]+\.JK)/)?.[1] || '';
+        const name = section.match(/NAME:\s*([^\n]+)/)?.[1] || symbol;
+        const price = parseFloat(section.match(/PRICE:\s*(\d+)/)?.[1] || '0');
+        const recommendation = section.match(/RECOMMENDATION:\s*([^\n]+)/)?.[1]?.trim() || 'Hold';
+        const confidence = parseInt(section.match(/CONFIDENCE:\s*(\d+)/)?.[1] || '50');
+        
+        // Extract fundamental metrics
+        const peRatio = parseFloat(section.match(/1\.\s*P\/E Ratio:\s*(\d+\.?\d*)/)?.[1] || '0');
+        const dividendYield = parseFloat(section.match(/2\.\s*Dividend Yield:\s*(\d+\.?\d*)/)?.[1] || '0');
+        const marketCap = parseFloat(section.match(/3\.\s*Market Cap:\s*(\d+)/)?.[1] || '0');
+        const profitMargin = parseFloat(section.match(/4\.\s*Profit Margin:\s*(\d+\.?\d*)/)?.[1] || '0');
+        const debtToEquity = parseFloat(section.match(/5\.\s*Debt to Equity:\s*(\d+\.?\d*)/)?.[1] || '0');
+        const currentRatio = parseFloat(section.match(/6\.\s*Current Ratio:\s*(\d+\.?\d*)/)?.[1] || '0');
+        
+        // Extract technical indicators
+        const rsi = parseFloat(section.match(/1\.\s*RSI:\s*(\d+)/)?.[1] || '0');
+        const macd = parseFloat(section.match(/2\.\s*MACD:\s*([-]?\d+\.?\d*)/)?.[1] || '0');
+        const volumeChange = parseFloat(section.match(/3\.\s*Volume Change:\s*([-]?\d+\.?\d*)/)?.[1] || '0');
+        const volatility = parseFloat(section.match(/4\.\s*Volatility:\s*(\d+\.?\d*)/)?.[1] || '0');
+        const momentum = parseFloat(section.match(/5\.\s*Momentum:\s*([-]?\d+\.?\d*)/)?.[1] || '0');
+        const atr = parseFloat(section.match(/6\.\s*ATR:\s*(\d+\.?\d*)/)?.[1] || '0');
+        
+        // Extract analysis sections
+        const technical = section.match(/1\.\s*Technical:\s*([^\n]+)/)?.[1]?.trim() || '';
+        const fundamental = section.match(/2\.\s*Fundamental:\s*([^\n]+)/)?.[1]?.trim() || '';
+        const sentiment = section.match(/3\.\s*Sentiment:\s*([^\n]+)/)?.[1]?.trim() || '';
+        const risk = section.match(/4\.\s*Risk:\s*([^\n]+)/)?.[1]?.trim() || '';
+        
+        recommendations.push({
+          symbol,
+          name,
+          price,
+          recommendation,
+          confidence,
+          analysis: {
+            technical,
+            fundamental,
+            sentiment,
+            risk
+          },
+          metrics: {
+            peRatio,
+            dividendYield,
+            marketCap,
+            profitMargin,
+            debtToEquity,
+            currentRatio,
+            rsi,
+            macd,
+            volumeChange,
+            volatility,
+            momentum,
+            atr
+          }
+        });
+      }
+    }
 
     return recommendations;
   } catch (error) {
@@ -165,13 +272,98 @@ export async function getInvestmentRecommendations(): Promise<StockAnalysis[]> {
 
 export async function getSwingTradingRecommendations(): Promise<StockAnalysis[]> {
   try {
-    // Get stock data from your existing service
-    const stocks = await getSwingTradingRecommendations();
-    
-    // Get AI recommendations for each stock
-    const recommendations = await Promise.all(
-      stocks.map(stock => getGeminiRecommendation(stock.symbol, stock.metrics, 'swing'))
-    );
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+
+    const prompt = `Based on your knowledge of current market conditions and technical analysis, provide recommendations for the top 10 Indonesian stocks (IDX - Indonesia Stock Exchange) that are good for swing trading (short-term trading). For each stock, provide the information in this exact format:
+
+STOCK 1:
+SYMBOL: [Stock Symbol with .JK suffix]
+NAME: [Company Name]
+PRICE: [Current Price in IDR without currency symbol, e.g., 15000]
+RECOMMENDATION: [Strong Buy/Buy/Hold/Sell/Strong Sell]
+CONFIDENCE: [0-100]%
+
+TECHNICAL INDICATORS:
+1. RSI: [value between 0-100]
+2. MACD: [value]
+3. Volume Change: [percentage]%
+4. Volatility: [value]
+5. Momentum: [value]
+6. ATR: [value]
+
+ANALYSIS:
+1. Technical: [Technical analysis summary]
+2. Trend: [Short-term trend analysis]
+3. Sentiment: [Market sentiment analysis]
+4. Risk: [Risk assessment]
+
+STOCK 2:
+[Same format as above]
+
+[Continue for all 10 stocks]
+
+Please ensure:
+1. All stocks are from the Indonesia Stock Exchange (IDX)
+2. Include the .JK suffix in the stock symbols
+3. Prices should be provided as numbers without currency symbol (e.g., 15000 for Rp15.000)
+4. Each stock follows this exact format with the labels as shown
+5. Focus on liquid stocks with good trading volume
+6. Include all technical indicators with their current values
+7. Use numbered points for technical indicators and analysis sections`;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
+
+    // Parse the AI response to extract recommendations
+    const recommendations: StockAnalysis[] = [];
+    const stockSections = text.split(/STOCK \d+:/); // Split by stock sections
+
+    for (const section of stockSections) {
+      if (section.trim()) {
+        const symbol = section.match(/SYMBOL:\s*([A-Z]+\.JK)/)?.[1] || '';
+        const name = section.match(/NAME:\s*([^\n]+)/)?.[1] || symbol;
+        const price = parseFloat(section.match(/PRICE:\s*(\d+)/)?.[1] || '0');
+        const recommendation = section.match(/RECOMMENDATION:\s*([^\n]+)/)?.[1]?.trim() || 'Hold';
+        const confidence = parseInt(section.match(/CONFIDENCE:\s*(\d+)/)?.[1] || '50');
+        
+        // Extract technical indicators
+        const rsi = parseFloat(section.match(/1\.\s*RSI:\s*(\d+)/)?.[1] || '0');
+        const macd = parseFloat(section.match(/2\.\s*MACD:\s*([-]?\d+\.?\d*)/)?.[1] || '0');
+        const volumeChange = parseFloat(section.match(/3\.\s*Volume Change:\s*([-]?\d+\.?\d*)/)?.[1] || '0');
+        const volatility = parseFloat(section.match(/4\.\s*Volatility:\s*(\d+\.?\d*)/)?.[1] || '0');
+        const momentum = parseFloat(section.match(/5\.\s*Momentum:\s*([-]?\d+\.?\d*)/)?.[1] || '0');
+        const atr = parseFloat(section.match(/6\.\s*ATR:\s*(\d+\.?\d*)/)?.[1] || '0');
+        
+        // Extract analysis sections
+        const technical = section.match(/1\.\s*Technical:\s*([^\n]+)/)?.[1]?.trim() || '';
+        const fundamental = section.match(/2\.\s*Trend:\s*([^\n]+)/)?.[1]?.trim() || ''; // Using trend instead of fundamental for swing trading
+        const sentiment = section.match(/3\.\s*Sentiment:\s*([^\n]+)/)?.[1]?.trim() || '';
+        const risk = section.match(/4\.\s*Risk:\s*([^\n]+)/)?.[1]?.trim() || '';
+        
+        recommendations.push({
+          symbol,
+          name,
+          price,
+          recommendation,
+          confidence,
+          analysis: {
+            technical,
+            fundamental,
+            sentiment,
+            risk
+          },
+          metrics: {
+            rsi,
+            macd,
+            volumeChange,
+            volatility,
+            momentum,
+            atr
+          }
+        });
+      }
+    }
 
     return recommendations;
   } catch (error) {

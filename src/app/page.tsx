@@ -104,40 +104,40 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen bg-primary text-white p-4 md:p-8">
+    <div className="flex-1 p-4 md:p-8">
       <div className="max-w-7xl mx-auto space-y-8">
-        <div className="bg-secondary rounded-lg p-6 shadow-lg">
+        <div className="bg-white rounded-lg p-6 shadow-lg">
           <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
             <div className="flex-1 w-full">
               <div className="relative">
-                <div className="flex items-center bg-primary rounded-lg border border-gray-700 focus-within:border-blue-500 transition-colors">
+                <div className="flex items-center bg-gray-50 rounded-lg border border-gray-200 focus-within:border-blue-500 transition-colors">
                   <input
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="Enter stock symbol"
-                    className="w-full px-4 py-3 bg-transparent text-white placeholder-gray-400 focus:outline-none"
+                    className="w-full px-4 py-3 bg-transparent text-gray-900 placeholder-gray-400 focus:outline-none"
                   />
                   <button
                     onClick={handleSearch}
-                    className="px-4 py-3 text-gray-400 hover:text-white transition-colors"
+                    className="px-4 py-3 text-gray-400 hover:text-gray-600 transition-colors"
                   >
                     <FiSearch className="w-5 h-5" />
                   </button>
                 </div>
                 {searchResults.length > 0 && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-secondary rounded-lg shadow-lg z-10 border border-gray-700">
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-lg shadow-lg z-10 border border-gray-200">
                     {searchResults.map((result) => (
                       <button
                         key={result.symbol}
                         onClick={() => handleSelectResult(result)}
-                        className="w-full px-4 py-3 text-left hover:bg-primary/50 flex flex-col border-b border-gray-700 last:border-0 transition-colors"
+                        className="w-full px-4 py-3 text-left hover:bg-gray-50 flex flex-col border-b border-gray-200 last:border-0 transition-colors"
                       >
                         <div className="flex justify-between items-center">
-                          <span className="font-medium">{result.symbol}</span>
-                          <span className="text-xs text-gray-400">{result.exchange}</span>
+                          <span className="font-medium text-gray-900">{result.symbol}</span>
+                          <span className="text-xs text-gray-500">{result.exchange}</span>
                         </div>
-                        <span className="text-sm text-gray-400">{result.name}</span>
+                        <span className="text-sm text-gray-500">{result.name}</span>
                       </button>
                     ))}
                   </div>
@@ -160,48 +160,48 @@ export default function Home() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-8">
-            <div className="bg-secondary rounded-lg p-6 shadow-lg">
+            <div className="bg-white rounded-lg p-6 shadow-lg">
               <Chart data={stockData} selectedIndicators={selectedIndicators} />
             </div>
-            <div className="bg-secondary rounded-lg p-6 shadow-lg">
+            <div className="bg-white rounded-lg p-6 shadow-lg">
               <TechnicalIndicators
                 onChange={handleIndicatorChange}
                 selectedIndicators={selectedIndicators}
               />
             </div>
-            <div className="bg-secondary rounded-lg p-6 shadow-lg">
+            <div className="bg-white rounded-lg p-6 shadow-lg">
               <VolumeAnalysis symbol={symbol} />
             </div>
-            <div className="bg-secondary rounded-lg p-6 shadow-lg">
+            <div className="bg-white rounded-lg p-6 shadow-lg">
               <Backtesting symbol={symbol} />
             </div>
           </div>
 
           <div className="space-y-8">
-            <div className="bg-secondary rounded-lg p-6 shadow-lg">
+            <div className="bg-white rounded-lg p-6 shadow-lg">
               <StockRecommendations />
             </div>
-            <div className="bg-secondary rounded-lg p-6 shadow-lg">
+            <div className="bg-white rounded-lg p-6 shadow-lg">
               <SupportResistance data={stockData} />
             </div>
-            <div className="bg-secondary rounded-lg p-6 shadow-lg">
+            <div className="bg-white rounded-lg p-6 shadow-lg">
               <FibonacciRetracement />
             </div>
-            <div className="bg-secondary rounded-lg p-6 shadow-lg">
+            <div className="bg-white rounded-lg p-6 shadow-lg">
               <RiskManagement data={stockData} />
             </div>
-            <div className="bg-secondary rounded-lg p-6 shadow-lg">
+            <div className="bg-white rounded-lg p-6 shadow-lg">
               <DCARecommendation data={stockData} />
             </div>
-            <div className="bg-secondary rounded-lg p-6 shadow-lg">
+            <div className="bg-white rounded-lg p-6 shadow-lg">
               <OrderBookComponent symbol={symbol} />
             </div>
-            <div className="bg-secondary rounded-lg p-6 shadow-lg">
+            <div className="bg-white rounded-lg p-6 shadow-lg">
               <PriceAlert symbol={symbol} />
             </div>
           </div>
         </div>
       </div>
-    </main>
+    </div>
   )
 } 
