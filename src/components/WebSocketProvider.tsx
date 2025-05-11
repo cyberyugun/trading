@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useEffect, ReactNode, useState } from 'react';
 import useWebSocketStore from '@/services/websocket';
 
 interface WebSocketContextType {
@@ -27,9 +27,11 @@ interface WebSocketProviderProps {
 }
 
 export function WebSocketProvider({ children, wsUrl }: WebSocketProviderProps) {
+  const [isClient, setIsClient] = useState(false);
   const { connect, disconnect, isConnected, messages, send, subscribe, unsubscribe } = useWebSocketStore();
 
   useEffect(() => {
+    setIsClient(true);
     // Connect to WebSocket when the provider mounts
     connect(wsUrl);
 
@@ -38,6 +40,11 @@ export function WebSocketProvider({ children, wsUrl }: WebSocketProviderProps) {
       disconnect();
     };
   }, [wsUrl]);
+
+  // Don't render anything on the server
+  if (!isClient) {
+    return null;
+  }
 
   return (
     <WebSocketContext.Provider

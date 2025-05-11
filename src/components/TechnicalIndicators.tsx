@@ -98,18 +98,18 @@ export default function TechnicalIndicators({
 
   return (
     <div className="technical-indicators">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold">Technical Indicators</h2>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <h2 className="text-xl font-semibold text-white">Technical Indicators</h2>
         <div className="flex items-center gap-2 text-sm text-gray-400">
           <span>Add indicators to chart</span>
         </div>
       </div>
 
-      <div className="space-y-4">
-        <div className="p-4 bg-blue-500/10 rounded-lg border border-blue-500/20">
+      <div className="space-y-4 mt-6">
+        <div className="p-4 bg-[rgb(var(--accent-primary))]/10 rounded-lg border border-[rgb(var(--accent-primary))]/20">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-medium text-blue-500">Add Indicator</h3>
-            <FiSettings className="w-5 h-5 text-blue-500" />
+            <h3 className="text-lg font-medium text-[rgb(var(--accent-primary))]">Add Indicator</h3>
+            <FiSettings className="w-5 h-5 text-[rgb(var(--accent-primary))]" />
           </div>
           <div className="space-y-4">
             <div>
@@ -125,7 +125,7 @@ export default function TechnicalIndicators({
                     setParams(indicator.params)
                   }
                 }}
-                className="w-full p-2 rounded bg-background border border-border focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                className="w-full"
               >
                 <option value="">Choose an indicator</option>
                 {AVAILABLE_INDICATORS.map(indicator => (
@@ -137,11 +137,8 @@ export default function TechnicalIndicators({
             </div>
 
             {selectedIndicator && (
-              <div className="space-y-3">
-                <div className="text-sm text-gray-400">
-                  {AVAILABLE_INDICATORS.find(i => i.name === selectedIndicator)?.description}
-                </div>
-                <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {Object.entries(params).map(([key, value]) => (
                     <div key={key}>
                       <label className="block text-sm font-medium text-gray-400 mb-1">
@@ -150,18 +147,18 @@ export default function TechnicalIndicators({
                       <input
                         type="number"
                         value={value}
-                        onChange={(e) => handleParamChange(key, e.target.value)}
-                        className="w-full p-2 rounded bg-background border border-border focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                        onChange={(e) => setParams({ ...params, [key]: Number(e.target.value) })}
+                        className="w-full"
                       />
                     </div>
                   ))}
                 </div>
                 <button
                   onClick={handleAddIndicator}
-                  className="w-full p-2 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center justify-center gap-2"
+                  className="w-full mt-4 px-4 py-2 bg-[rgb(var(--accent-primary))] text-white rounded-lg hover:bg-[rgb(var(--accent-hover))] transition-colors flex items-center justify-center gap-2"
                 >
                   <FiPlus className="w-4 h-4" />
-                  Add to Chart
+                  Add Indicator
                 </button>
               </div>
             )}
@@ -174,12 +171,12 @@ export default function TechnicalIndicators({
               <h3 className="text-lg font-medium text-green-500">Active Indicators</h3>
               <span className="text-sm text-green-500">{selectedIndicators.length} selected</span>
             </div>
-            <div className="space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {selectedIndicators.map((indicator, index) => (
-                <div key={index} className="p-3 bg-background rounded-lg border border-border">
+                <div key={index} className="p-3 bg-[rgb(var(--card-bg))] rounded-lg border border-[rgb(var(--card-border))]">
                   <div className="flex items-center justify-between">
                     <div>
-                      <span className="font-medium">
+                      <span className="font-medium text-white">
                         {AVAILABLE_INDICATORS.find(i => i.name === indicator.name)?.label}
                       </span>
                       <div className="text-sm text-gray-400">

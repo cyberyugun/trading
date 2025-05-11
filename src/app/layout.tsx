@@ -19,12 +19,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${inter.className} bg-gray-100`}>
-        <WebSocketProvider wsUrl={process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:3001'}>
-          <div className="min-h-screen flex flex-col">
-            <Navigation />
+        <div className="min-h-screen flex flex-col">
+          <Navigation />
+          <WebSocketProvider wsUrl={process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:3001'}>
             {children}
-          </div>
-        </WebSocketProvider>
+          </WebSocketProvider>
+        </div>
       </body>
     </html>
   )

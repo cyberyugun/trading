@@ -3,43 +3,137 @@
 @tailwind utilities;
 
 :root {
-  --foreground-rgb: 0, 0, 0;
-  --background-start-rgb: 214, 219, 220;
-  --background-end-rgb: 255, 255, 255;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --foreground-rgb: 255, 255, 255;
-    --background-start-rgb: 0, 0, 0;
-    --background-end-rgb: 0, 0, 0;
-  }
+  --foreground-rgb: 255, 255, 255;
+  --background-start-rgb: 17, 17, 17;
+  --background-end-rgb: 23, 23, 23;
+  --card-bg: 30, 30, 30;
+  --card-border: 45, 45, 45;
+  --accent-primary: 59, 130, 246;
+  --accent-hover: 37, 99, 235;
+  --input-bg: 45, 45, 45;
+  --input-text: 255, 255, 255;
+  --input-placeholder: 156, 163, 175;
 }
 
 body {
   color: rgb(var(--foreground-rgb));
   background: linear-gradient(
       to bottom,
-      transparent,
+      rgb(var(--background-start-rgb)),
       rgb(var(--background-end-rgb))
-    )
-    rgb(var(--background-start-rgb));
+    );
+  min-height: 100vh;
 }
 
-/* Add styles for input and select tags only in Technical Indicators and DCA Recommendation */
+/* Modern card styling */
+.card {
+  background: rgb(var(--card-bg));
+  border: 1px solid rgb(var(--card-border));
+  border-radius: 0.75rem;
+  transition: all 0.2s ease;
+}
+
+.card:hover {
+  border-color: rgb(var(--accent-primary));
+}
+
+/* Input and select styling */
+input, select {
+  background: rgb(var(--input-bg)) !important;
+  border: 1px solid rgb(var(--card-border)) !important;
+  color: rgb(var(--input-text)) !important;
+  border-radius: 0.5rem !important;
+  padding: 0.75rem 1rem !important;
+  transition: all 0.2s ease !important;
+  font-size: 0.875rem !important;
+  line-height: 1.25rem !important;
+  width: 100% !important;
+}
+
+input::placeholder {
+  color: rgb(var(--input-placeholder)) !important;
+}
+
+input:focus, select:focus {
+  border-color: rgb(var(--accent-primary)) !important;
+  outline: none !important;
+  box-shadow: 0 0 0 2px rgba(var(--accent-primary), 0.2) !important;
+}
+
+select {
+  appearance: none !important;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%239CA3AF' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e") !important;
+  background-position: right 0.5rem center !important;
+  background-repeat: no-repeat !important;
+  background-size: 1.5em 1.5em !important;
+  padding-right: 2.5rem !important;
+}
+
+select option {
+  background: rgb(var(--input-bg)) !important;
+  color: rgb(var(--input-text)) !important;
+  padding: 0.5rem !important;
+}
+
+/* Button styling */
+button {
+  transition: all 0.2s ease;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgb(var(--card-bg));
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgb(var(--card-border));
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgb(var(--accent-primary));
+}
+
+/* Responsive styles */
+@media (min-width: 768px) {
+  input, select {
+    font-size: 1rem !important;
+    padding: 0.875rem 1.25rem !important;
+  }
+}
+
+@media (min-width: 1024px) {
+  .container {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 0 2rem;
+  }
+}
+
+/* Remove the specific styles for Technical Indicators and DCA Recommendation */
 .technical-indicators input,
 .technical-indicators select,
 .dca-recommendation input,
 .dca-recommendation select {
-  color: black !important;
+  color: rgb(var(--input-text)) !important;
 }
 
 .technical-indicators input::placeholder,
 .dca-recommendation input::placeholder {
-  color: #666 !important;
+  color: rgb(var(--input-placeholder)) !important;
 }
 
 .technical-indicators select option,
 .dca-recommendation select option {
-  color: black;
+  color: rgb(var(--input-text)) !important;
 } 

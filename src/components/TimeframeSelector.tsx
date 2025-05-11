@@ -16,37 +16,37 @@ export default function TimeframeSelector({
   onRangeChange,
 }: TimeframeSelectorProps) {
   return (
-    <div className="flex gap-4 items-center">
-      <div className="flex flex-col">
-        <label htmlFor="interval" className="text-sm font-medium text-gray-300 mb-1">
-          Interval
+    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+      <div className="flex items-center gap-2">
+        <label htmlFor="interval" className="text-sm font-medium text-gray-300 whitespace-nowrap">
+          Interval:
         </label>
         <select
           id="interval"
           value={selected}
           onChange={(e) => onChange(e.target.value as TimeInterval)}
-          className="block w-full rounded-lg bg-primary border border-gray-700 text-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-3 py-2 transition-colors"
+          className="w-32"
         >
           {timeIntervalOptions.map((option) => (
-            <option key={option.value} value={option.value} className="bg-primary">
+            <option key={option.value} value={option.value}>
               {option.label}
             </option>
           ))}
         </select>
       </div>
 
-      <div className="flex flex-col">
-        <label htmlFor="range" className="text-sm font-medium text-gray-300 mb-1">
-          Range
+      <div className="flex items-center gap-2">
+        <label htmlFor="range" className="text-sm font-medium text-gray-300 whitespace-nowrap">
+          Range:
         </label>
         <select
           id="range"
           value={range}
           onChange={(e) => onRangeChange(e.target.value as TimeRange)}
-          className="block w-full rounded-lg bg-primary border border-gray-700 text-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-3 py-2 transition-colors"
+          className="w-32"
         >
           {timeRangeOptions.map((option) => (
-            <option key={option.value} value={option.value} className="bg-primary">
+            <option key={option.value} value={option.value}>
               {option.label}
             </option>
           ))}

@@ -16,11 +16,12 @@ import StockRecommendations from '@/components/StockRecommendations'
 import { FiSearch, FiRefreshCw } from 'react-icons/fi'
 import { searchStocks, SearchResult, getHistoricalData, StockData } from '@/lib/yahooFinance'
 import { TimeInterval, TimeRange } from '@/types/timeframe'
+import SectionNav from '@/components/SectionNav'
 
 export default function Home() {
   const [timeframe, setTimeframe] = useState<TimeInterval>('1d')
   const [range, setRange] = useState<TimeRange>('1mo')
-  const [symbol, setSymbol] = useState('BBCA.JK') // Default to BCA stock
+  const [symbol, setSymbol] = useState<string>('')
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedIndicators, setSelectedIndicators] = useState<Array<{
     name: string
@@ -32,6 +33,9 @@ export default function Home() {
   const [searchResults, setSearchResults] = useState<SearchResult[]>([])
   const [isSearching, setIsSearching] = useState(false)
   const searchTimeoutRef = useRef<NodeJS.Timeout>()
+  const [activeSection, setActiveSection] = useState<string>('chart')
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [refreshTrigger, setRefreshTrigger] = useState(0)
 
   useEffect(() => {
     if (searchTimeoutRef.current) {
@@ -56,41 +60,30 @@ export default function Home() {
     }
   }, [searchQuery])
 
-  useEffect(() => {
-    const fetchData = async () => {
-      setIsLoading(true)
-      setError(null)
-      try {
-        const data = await getHistoricalData(symbol, timeframe, range)
-        if (!data || data.length === 0) {
-          throw new Error('No data available')
-        }
-        setStockData(data)
-      } catch (err) {
-        console.error('Error fetching stock data:', err)
-        setError(err instanceof Error ? err.message : 'Failed to fetch stock data')
-      } finally {
-        setIsLoading(false)
+  const fetchData = async (forceRefresh: boolean = false) => {
+    setIsLoading(true)
+    setError(null)
+    try {
+      const data = await getHistoricalData(symbol, timeframe, range, forceRefresh)
+      if (!data || data.length === 0) {
+        throw new Error('No data available')
       }
-    }
-
-    fetchData()
-  }, [symbol, timeframe, range])
-
-  const handleSearch = () => {
-    if (searchQuery.length >= 2) {
-      searchStocks(searchQuery)
-        .then(results => {
-          setSearchResults(results)
-        })
-        .catch(error => {
-          console.error('Error searching stocks:', error)
-          setError('Failed to search stocks')
-        })
+      setStockData(data)
+    } catch (err) {
+      console.error('Error fetching stock data:', err)
+      setError(err instanceof Error ? err.message : 'Failed to fetch stock data')
+    } finally {
+      setIsLoading(false)
     }
   }
 
-  const handleSelectResult = (result: SearchResult) => {
+  useEffect(() => {
+    if (symbol) {
+      fetchData()
+    }
+  }, [symbol, timeframe, range])
+
+  const handleSelectStock = (result: SearchResult) => {
     setSymbol(result.symbol)
     setSearchQuery('')
     setSearchResults([])
@@ -103,105 +96,121 @@ export default function Home() {
     setSelectedIndicators(indicators)
   }
 
+  const handleRefresh = async () => {
+    setIsRefreshing(true)
+    await fetchData(true)
+    setIsRefreshing(false)
+  }
+
   return (
-    <div className="flex-1 p-4 md:p-8">
-      <div className="max-w-7xl mx-auto space-y-8">
-        <div className="bg-white rounded-lg p-6 shadow-lg">
-          <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
-            <div className="flex-1 w-full">
-              <div className="relative">
-                <div className="flex items-center bg-gray-50 rounded-lg border border-gray-200 focus-within:border-blue-500 transition-colors">
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Enter stock symbol"
-                    className="w-full px-4 py-3 bg-transparent text-gray-900 placeholder-gray-400 focus:outline-none"
-                  />
+    <main className="min-h-screen bg-[rgb(var(--background))] text-[rgb(var(--foreground))]">
+      <div className="container mx-auto px-4 py-8">
+        <div className="bg-[rgb(var(--card-bg))] rounded-xl p-6 shadow-lg border border-[rgb(var(--card-border))] mb-8">
+          <div className="flex flex-col gap-4">
+            <h1 className="text-2xl font-bold text-white">Stock Analysis</h1>
+            <div className="relative">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search stocks by symbol or company name..."
+                className="w-full px-4 py-3 pr-12 bg-[rgb(var(--card-bg))] border border-[rgb(var(--card-border))] rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white placeholder-gray-400"
+              />
+              <FiSearch className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+            </div>
+          </div>
+
+          {searchResults.length > 0 && (
+            <div className="mt-4">
+              <h2 className="text-lg font-semibold mb-4 text-white">Search Results</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {searchResults.map((result) => (
                   <button
-                    onClick={handleSearch}
-                    className="px-4 py-3 text-gray-400 hover:text-gray-600 transition-colors"
+                    key={result.symbol}
+                    onClick={() => handleSelectStock(result)}
+                    className="p-4 bg-[rgb(var(--card-bg))] border border-[rgb(var(--card-border))] rounded-lg hover:bg-[rgb(var(--card-hover))] transition-colors text-left group"
                   >
-                    <FiSearch className="w-5 h-5" />
+                    <div className="font-semibold text-white group-hover:text-blue-400 transition-colors">{result.symbol}</div>
+                    <div className="text-sm text-gray-400">{result.name}</div>
                   </button>
-                </div>
-                {searchResults.length > 0 && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-lg shadow-lg z-10 border border-gray-200">
-                    {searchResults.map((result) => (
-                      <button
-                        key={result.symbol}
-                        onClick={() => handleSelectResult(result)}
-                        className="w-full px-4 py-3 text-left hover:bg-gray-50 flex flex-col border-b border-gray-200 last:border-0 transition-colors"
-                      >
-                        <div className="flex justify-between items-center">
-                          <span className="font-medium text-gray-900">{result.symbol}</span>
-                          <span className="text-xs text-gray-500">{result.exchange}</span>
-                        </div>
-                        <span className="text-sm text-gray-500">{result.name}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
+                ))}
               </div>
-              {error && (
-                <div className="mt-2 text-red-500 text-sm">{error}</div>
-              )}
             </div>
-            <div className="w-full md:w-auto">
-              <TimeframeSelector 
-                selected={timeframe} 
-                range={range}
-                onChange={setTimeframe} 
-                onRangeChange={setRange}
-              />
-            </div>
-          </div>
+          )}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2 space-y-8">
-            <div className="bg-white rounded-lg p-6 shadow-lg">
-              <Chart data={stockData} selectedIndicators={selectedIndicators} />
-            </div>
-            <div className="bg-white rounded-lg p-6 shadow-lg">
-              <TechnicalIndicators
-                onChange={handleIndicatorChange}
-                selectedIndicators={selectedIndicators}
-              />
-            </div>
-            <div className="bg-white rounded-lg p-6 shadow-lg">
-              <VolumeAnalysis symbol={symbol} />
-            </div>
-            <div className="bg-white rounded-lg p-6 shadow-lg">
-              <Backtesting symbol={symbol} />
-            </div>
-          </div>
+        {symbol && (
+          <>
+            <SectionNav activeSection={activeSection} onSectionChange={setActiveSection} />
+            <div className="space-y-8">
+              <div id="chart" className={`bg-[rgb(var(--card-bg))] rounded-xl p-6 shadow-lg border border-[rgb(var(--card-border))] ${activeSection !== 'chart' ? 'hidden' : ''}`}>
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+                  <h2 className="text-xl font-semibold text-white">{symbol}</h2>
+                  <div className="flex items-center gap-4">
+                    <TimeframeSelector
+                      selected={timeframe}
+                      range={range}
+                      onChange={setTimeframe}
+                      onRangeChange={setRange}
+                    />
+                    <button
+                      onClick={handleRefresh}
+                      className="p-2 text-gray-400 hover:text-white transition-colors"
+                      title="Refresh data"
+                    >
+                      <FiRefreshCw className={`w-5 h-5 ${isRefreshing ? 'animate-spin' : ''}`} />
+                    </button>
+                  </div>
+                </div>
+                <div className="space-y-6">
+                  <div>
+                    <Chart data={stockData} selectedIndicators={selectedIndicators} />
+                  </div>
+                  <div className="bg-[rgb(var(--card-bg))] rounded-lg p-4 border border-[rgb(var(--card-border))]">
+                    <h3 className="text-lg font-semibold mb-4 text-white">Technical Indicators</h3>
+                    <TechnicalIndicators
+                      selectedIndicators={selectedIndicators}
+                      onChange={handleIndicatorChange}
+                    />
+                  </div>
+                </div>
+              </div>
 
-          <div className="space-y-8">
-            <div className="bg-white rounded-lg p-6 shadow-lg">
-              <StockRecommendations />
+              <div id="backtesting" className={`bg-[rgb(var(--card-bg))] rounded-xl p-6 shadow-lg border border-[rgb(var(--card-border))] ${activeSection !== 'backtesting' ? 'hidden' : ''}`}>
+                <Backtesting symbol={symbol} />
+              </div>
+
+              <div id="recommendations" className={`bg-[rgb(var(--card-bg))] rounded-xl p-6 shadow-lg border border-[rgb(var(--card-border))] ${activeSection !== 'recommendations' ? 'hidden' : ''}`}>
+                <StockRecommendations />
+              </div>
+
+              <div id="support-resistance" className={`bg-[rgb(var(--card-bg))] rounded-xl p-6 shadow-lg border border-[rgb(var(--card-border))] ${activeSection !== 'support-resistance' ? 'hidden' : ''}`}>
+                <SupportResistance data={stockData} />
+              </div>
+
+              <div id="fibonacci" className={`bg-[rgb(var(--card-bg))] rounded-xl p-6 shadow-lg border border-[rgb(var(--card-border))] ${activeSection !== 'fibonacci' ? 'hidden' : ''}`}>
+                <FibonacciRetracement />
+              </div>
+
+              <div id="risk" className={`bg-[rgb(var(--card-bg))] rounded-xl p-6 shadow-lg border border-[rgb(var(--card-border))] ${activeSection !== 'risk' ? 'hidden' : ''}`}>
+                <RiskManagement data={stockData} />
+              </div>
+
+              <div id="dca" className={`bg-[rgb(var(--card-bg))] rounded-xl p-6 shadow-lg border border-[rgb(var(--card-border))] ${activeSection !== 'dca' ? 'hidden' : ''}`}>
+                <DCARecommendation data={stockData} />
+              </div>
+
+              <div id="orderbook" className={`bg-[rgb(var(--card-bg))] rounded-xl p-6 shadow-lg border border-[rgb(var(--card-border))] ${activeSection !== 'orderbook' ? 'hidden' : ''}`}>
+                <OrderBookComponent symbol={symbol} />
+              </div>
+
+              <div id="alerts" className={`bg-[rgb(var(--card-bg))] rounded-xl p-6 shadow-lg border border-[rgb(var(--card-border))] ${activeSection !== 'alerts' ? 'hidden' : ''}`}>
+                <PriceAlert symbol={symbol} />
+              </div>
             </div>
-            <div className="bg-white rounded-lg p-6 shadow-lg">
-              <SupportResistance data={stockData} />
-            </div>
-            <div className="bg-white rounded-lg p-6 shadow-lg">
-              <FibonacciRetracement />
-            </div>
-            <div className="bg-white rounded-lg p-6 shadow-lg">
-              <RiskManagement data={stockData} />
-            </div>
-            <div className="bg-white rounded-lg p-6 shadow-lg">
-              <DCARecommendation data={stockData} />
-            </div>
-            <div className="bg-white rounded-lg p-6 shadow-lg">
-              <OrderBookComponent symbol={symbol} />
-            </div>
-            <div className="bg-white rounded-lg p-6 shadow-lg">
-              <PriceAlert symbol={symbol} />
-            </div>
-          </div>
-        </div>
+          </>
+        )}
       </div>
-    </div>
+    </main>
   )
 } 
